@@ -1,17 +1,18 @@
 // app.js — Entry point for the GeoPhotoTagger frontend
-// Imports all modules and wires up the init() function.
+// Imports all feature modules and calls their init functions.
 // Loaded by index.html via <script type="module" src="/js/app.js">
 
 import { state } from './state.js';
+import { initScan } from './scan.js';
 
-// init() is called when the DOM is ready.
-// It sets up event listeners and initializes the UI.
+// init wires up all UI modules after the DOM is ready.
 function init() {
-    console.log('GeoPhotoTagger initialized');
-    console.log('State:', state);
+    console.log('GeoPhotoTagger initialising...');
+    initScan();
+    console.log('GeoPhotoTagger ready. State:', state);
 }
 
-// Wait for the DOM to be fully loaded before initializing.
+// Guard against the script running before DOMContentLoaded
 if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', init);
 } else {

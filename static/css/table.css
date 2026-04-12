@@ -1,4 +1,65 @@
-/* table.css — Data table styles for the target photos list
- * Styles the ZONE B table: alternating rows, score badges, status indicators.
- * TODO: Full implementation in Phase 7 (Polish + Full CSS)
+/* table.css — Data table styles for the Zone B target photos list
+ * Alternating hover rows, sticky header, score-coloured status badges.
+ * Full polish (score column, colour-coded badges) added in Phase 4 & 7.
  */
+
+.photo-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+    table-layout: fixed; /* prevents columns from jumping on content change */
+}
+
+/* ── Header ─────────────────────────────────────────────────────────── */
+
+.photo-table thead tr {
+    border-bottom: 2px solid var(--border);
+}
+
+.photo-table th {
+    text-align: left;
+    padding: 6px 8px;
+    color: var(--muted);
+    font-weight: 600;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    position: sticky;
+    top: 0;
+    background: var(--bg);
+    z-index: 1;
+}
+
+/* ── Body rows ───────────────────────────────────────────────────────── */
+
+.photo-table td {
+    padding: 6px 8px;
+    border-bottom: 1px solid rgba(42, 58, 78, 0.6);
+    vertical-align: middle;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.photo-row {
+    cursor: pointer;
+    transition: background 0.1s;
+}
+
+.photo-row:hover {
+    background: var(--bg-hover);
+}
+
+.photo-row.selected {
+    background: rgba(45, 212, 191, 0.08);
+    outline: 1px solid rgba(45, 212, 191, 0.3);
+    outline-offset: -1px;
+}
+
+/* ── Column widths ───────────────────────────────────────────────────── */
+
+.col-num      { width: 36px;  color: var(--muted); text-align: right; padding-right: 12px; }
+.col-filename { width: 38%;   font-weight: 500; }
+.col-date     { width: 22%;   color: var(--muted); font-size: 11px; }
+.col-camera   { width: 22%;   color: var(--muted); font-size: 11px; }
+.col-status   { width: 90px;  text-align: center; }
