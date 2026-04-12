@@ -1,125 +1,166 @@
-/* components.css — Reusable UI components
- * Buttons, folder input, scan indicator, status badges.
- * Full polish in Phase 7 — this file provides Phase 1 functional styles.
+/* components.css — Reusable UI components.
+ * Button styles, folder input, scan indicator, badges, toasts.
+ * All styles match the dedup-photos visual language exactly.
  */
 
 /* ── Buttons ─────────────────────────────────────────────────────────── */
 
 .btn {
-    display: inline-flex;
-    align-items: center;
-    gap: 5px;
-    padding: 5px 12px;
-    border-radius: 4px;
-    border: 1px solid var(--border);
-    background: var(--bg-card);
-    color: var(--text);
-    font-family: var(--font);
-    font-size: 12px;
-    cursor: pointer;
-    white-space: nowrap;
-    transition: background 0.15s, border-color 0.15s;
-    user-select: none;
+  padding: var(--space-sm) var(--space-md);
+  border: none;
+  border-radius: var(--radius);
+  font-family: var(--font);
+  font-size: var(--font-size-small);
+  font-weight: var(--font-weight-semi);
+  cursor: pointer;
+  transition: all var(--transition);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+  white-space: nowrap;
+  user-select: none;
 }
 
-.btn:hover:not(:disabled) {
-    background: var(--bg-hover);
-    border-color: var(--accent);
-}
+.btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
-.btn:active:not(:disabled) {
-    opacity: 0.85;
-}
+/* Primary — deep blue fill, white text (matches dedup-photos .btn-primary) */
+.btn-primary { background: var(--primary); color: #fff; }
+.btn-primary:hover:not(:disabled) { background: var(--primary-light); }
 
-.btn:disabled {
-    opacity: 0.35;
-    cursor: not-allowed;
-}
-
-/* Primary action — solid teal fill */
-.btn-primary {
-    background: var(--accent);
-    border-color: var(--accent);
-    color: var(--bg);
-    font-weight: 600;
-}
-
-.btn-primary:hover:not(:disabled) {
-    background: #26b8a5;
-    border-color: #26b8a5;
-    color: var(--bg);
-}
-
-/* Secondary action — ghost style */
+/* Secondary — outline, text darkens to primary on hover */
 .btn-secondary {
-    background: transparent;
-    border-color: var(--border);
-    color: var(--muted);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  color: var(--text);
+}
+.btn-secondary:hover:not(:disabled) {
+  border-color: var(--primary-light);
+  color: var(--primary);
 }
 
-/* Accent outline — teal border, teal text */
+/* Accent — sky-blue border + text, light fill on hover */
 .btn-accent {
-    background: transparent;
-    border-color: var(--accent);
-    color: var(--accent);
+  background: var(--bg);
+  border: 1px solid var(--primary-light);
+  color: var(--primary-light);
 }
+.btn-accent:hover:not(:disabled) { background: rgba(74, 144, 226, 0.08); }
 
-.btn-accent:hover:not(:disabled) {
-    background: rgba(45, 212, 191, 0.1);
-}
+/* Small size modifier */
+.btn-sm { padding: var(--space-xs) var(--space-sm); font-size: 0.75rem; }
 
 /* ── Folder path input ───────────────────────────────────────────────── */
 
 .folder-input {
-    flex: 1;
-    min-width: 180px;
-    padding: 5px 10px;
-    background: var(--bg);
-    border: 1px solid var(--border);
-    border-radius: 4px;
-    color: var(--text);
-    font-family: var(--font);
-    font-size: 12px;
-    outline: none;
-    cursor: default;
+  flex: 1;
+  min-width: 180px;
+  padding: var(--space-xs) var(--space-sm);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text);
+  font-family: var(--font);
+  font-size: var(--font-size-small);
+  outline: none;
+  cursor: default;
+  transition: border var(--transition);
 }
-
-.folder-input:focus {
-    border-color: var(--accent);
-}
+.folder-input:focus { border-color: var(--primary-light); }
 
 /* ── Scan indicator ──────────────────────────────────────────────────── */
 
 .scan-indicator {
-    font-size: 12px;
-    color: var(--accent);
-    animation: blink 1.2s ease-in-out infinite;
+  font-size: 0.8rem;
+  color: var(--primary-light);
+  animation: blink 1.2s ease-in-out infinite;
 }
-
-.scan-indicator.hidden {
-    display: none;
-}
+.scan-indicator.hidden { display: none; }
 
 @keyframes blink {
-    0%, 100% { opacity: 1; }
-    50%       { opacity: 0.3; }
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.3; }
 }
 
 /* ── Status badges ───────────────────────────────────────────────────── */
+/* Pill-shaped, solid background, white text — same convention as dedup-photos */
 
 .badge {
-    display: inline-block;
-    padding: 2px 8px;
-    border-radius: 10px;
-    font-size: 11px;
-    font-weight: 600;
-    letter-spacing: 0.02em;
+  display: inline-block;
+  padding: 2px 10px;
+  border-radius: 99px;
+  font-size: 0.68rem;
+  font-weight: var(--font-weight-semi);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: #fff;
 }
 
-/* Score-based colours — full set for Phase 4+ use */
-.badge-unmatched { background: rgba(90,106,122,0.25);  color: var(--muted); }
-.badge-matched   { background: rgba(6,182,212,0.2);    color: var(--good); }
-.badge-applied   { background: rgba(34,197,94,0.2);    color: var(--success); }
-.badge-excellent { background: rgba(139,92,246,0.2);   color: var(--excellent); }
-.badge-poor      { background: rgba(249,115,22,0.2);   color: var(--poor); }
-.badge-error     { background: rgba(239,68,68,0.2);    color: var(--danger); }
+.badge-unmatched { background: var(--border);         color: var(--text-light); }
+.badge-matched   { background: var(--primary-light);                             }
+.badge-applied   { background: var(--success);                                   }
+.badge-excellent { background: var(--excellent);                                 }
+.badge-poor      { background: var(--poor);           color: var(--black);      }
+.badge-error     { background: var(--danger);                                    }
+
+/* ── Toast notifications (matching dedup-photos exactly) ────────────── */
+
+#toast-container {
+  position: fixed;
+  bottom: 1.5rem;
+  right:  1.5rem;
+  display: flex;
+  flex-direction: column-reverse;
+  gap: var(--space-sm);
+  z-index: 9999;
+  pointer-events: none;
+}
+
+.toast {
+  pointer-events: auto;
+  padding: var(--space-sm) var(--space-md);
+  border-radius: var(--radius);
+  font-family: var(--font);
+  font-size: var(--font-size-small);
+  font-weight: var(--font-weight-semi);
+  color: #fff;
+  box-shadow: var(--shadow-md);
+  animation: toastIn 0.25s ease forwards;
+  max-width: 380px;
+  word-break: break-word;
+}
+.toast.removing  { animation: toastOut 0.2s ease forwards; }
+.toast-success   { background: var(--success); }
+.toast-error     { background: var(--danger);  }
+
+@keyframes toastIn  {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0);    }
+}
+@keyframes toastOut {
+  from { opacity: 1; transform: translateY(0);    }
+  to   { opacity: 0; transform: translateY(12px); }
+}
+
+/* ── Confirm dialog (matching dedup-photos .confirm-overlay) ─────────── */
+
+.confirm-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.35);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9000;
+}
+.confirm-box {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: var(--space-lg);
+  max-width: 480px;
+  width: 90%;
+  box-shadow: var(--shadow-md);
+  text-align: center;
+}
+.confirm-box p      { margin-bottom: var(--space-md); font-size: var(--font-size-body); }
+.confirm-box .btn-row { display: flex; gap: var(--space-sm); justify-content: center; }

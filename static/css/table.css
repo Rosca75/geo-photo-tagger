@@ -1,65 +1,67 @@
-/* table.css — Data table styles for the Zone B target photos list
- * Alternating hover rows, sticky header, score-coloured status badges.
- * Full polish (score column, colour-coded badges) added in Phase 4 & 7.
+/* table.css — Data table for Zone B target photos list.
+ * Follows dedup-photos table conventions: bg-subtle header, sky-blue
+ * active row border, text-light secondary columns, pill badges.
  */
 
 .photo-table {
-    width: 100%;
-    border-collapse: collapse;
-    font-size: 12px;
-    table-layout: fixed; /* prevents columns from jumping on content change */
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--font-size-small);
+  table-layout: fixed;
 }
 
-/* ── Header ─────────────────────────────────────────────────────────── */
+/* ── Sticky header ────────────────────────────────────────────────── */
 
 .photo-table thead tr {
-    border-bottom: 2px solid var(--border);
+  border-bottom: 2px solid var(--border);
 }
 
 .photo-table th {
-    text-align: left;
-    padding: 6px 8px;
-    color: var(--muted);
-    font-weight: 600;
-    font-size: 11px;
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
-    position: sticky;
-    top: 0;
-    background: var(--bg);
-    z-index: 1;
+  position: sticky;
+  top: 0;
+  background: var(--bg-subtle);
+  padding: var(--space-sm);
+  text-align: left;
+  font-size: 0.72rem;
+  font-weight: var(--font-weight-semi);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--text-light);
+  border-bottom: 2px solid var(--border);
+  white-space: nowrap;
+  z-index: 1;
+  transition: color var(--transition);
 }
+.photo-table th:hover { color: var(--primary); }
 
-/* ── Body rows ───────────────────────────────────────────────────────── */
+/* ── Body rows ────────────────────────────────────────────────────── */
 
 .photo-table td {
-    padding: 6px 8px;
-    border-bottom: 1px solid rgba(42, 58, 78, 0.6);
-    vertical-align: middle;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+  padding: 6px var(--space-sm);
+  border-bottom: 1px solid var(--border);
+  vertical-align: middle;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
+/* Matches dedup-photos .image-row pattern */
 .photo-row {
-    cursor: pointer;
-    transition: background 0.1s;
+  cursor: pointer;
+  transition: background var(--transition);
 }
+.photo-row:hover { background: var(--bg-subtle); }
 
-.photo-row:hover {
-    background: var(--bg-hover);
-}
-
+/* Active / selected row — sky-blue left accent (matches .image-row.active) */
 .photo-row.selected {
-    background: rgba(45, 212, 191, 0.08);
-    outline: 1px solid rgba(45, 212, 191, 0.3);
-    outline-offset: -1px;
+  background: rgba(74, 144, 226, 0.08);
+  border-left: 3px solid var(--primary-light);
 }
 
-/* ── Column widths ───────────────────────────────────────────────────── */
+/* ── Column widths ────────────────────────────────────────────────── */
 
-.col-num      { width: 36px;  color: var(--muted); text-align: right; padding-right: 12px; }
-.col-filename { width: 38%;   font-weight: 500; }
-.col-date     { width: 22%;   color: var(--muted); font-size: 11px; }
-.col-camera   { width: 22%;   color: var(--muted); font-size: 11px; }
+.col-num      { width: 36px;  color: var(--text-light); text-align: right; padding-right: 12px; }
+.col-filename { width: 38%;   font-weight: var(--font-weight-semi); color: var(--black); }
+.col-date     { width: 22%;   color: var(--text-light); font-size: 0.78rem; }
+.col-camera   { width: 22%;   color: var(--text-light); font-size: 0.78rem; }
 .col-status   { width: 90px;  text-align: center; }
