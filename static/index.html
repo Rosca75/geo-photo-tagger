@@ -11,28 +11,41 @@
 </head>
 <body>
     <div class="app-layout">
-        <!-- ZONE A — Top Bar -->
+
+        <!-- ZONE A — Top Bar (full width) -->
         <header class="topbar">
-            <h1>GeoPhotoTagger</h1>
-            <p class="muted">Add GPS coordinates to your camera photos</p>
+            <div class="topbar-row">
+                <span class="app-title">GeoPhotoTagger</span>
+                <input id="target-folder-path" class="folder-input"
+                       type="text" placeholder="Target folder (photos without GPS)..." readonly>
+                <button id="btn-browse" class="btn btn-primary">Browse</button>
+                <button class="btn btn-secondary" disabled title="Available in Phase 2">+ Reference</button>
+                <button class="btn btn-secondary" disabled title="Available in Phase 3">Import Track</button>
+                <button class="btn btn-accent" disabled title="Available in Phase 4">Match All</button>
+            </div>
+            <div class="topbar-row">
+                <span id="scan-indicator" class="scan-indicator hidden">Scanning...</span>
+            </div>
         </header>
 
-        <!-- ZONE B — Target Photos (left panel) -->
+        <!-- ZONE B — Target Photos (left panel ~45%) -->
         <main class="target-panel">
-            <p class="muted">Select a target folder to begin scanning...</p>
+            <div id="target-table-container">
+                <p class="muted panel-placeholder">Browse to a folder to scan for photos without GPS coordinates.</p>
+            </div>
         </main>
 
-        <!-- ZONE C — Match Details (right panel) -->
+        <!-- ZONE C — Match Details (right panel ~55%) -->
         <aside class="match-panel">
-            <p class="muted">Select a photo to see match details</p>
+            <p class="muted panel-placeholder">Select a photo from the list to see match details.</p>
         </aside>
 
         <!-- Status Bar -->
         <footer class="statusbar">
-            <span>Ready</span>
+            <span id="status-bar-text">Ready — select a target folder to begin</span>
         </footer>
-    </div>
 
+    </div>
     <script type="module" src="/js/app.js"></script>
 </body>
 </html>
