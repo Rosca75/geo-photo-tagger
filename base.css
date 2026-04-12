@@ -1,0 +1,45 @@
+/* base.css — Design tokens, reset, and typography
+ * See CLAUDE.md §9 for the full token reference.
+ * Do not change values without a deliberate design decision.
+ */
+
+:root {
+    --bg:           #0f1419;
+    --bg-card:      #1a2332;
+    --bg-hover:     #253345;
+    --border:       #2a3a4e;
+    --text:         #e2e8f0;
+    --muted:        #5a6a7a;
+    --accent:       #2dd4bf;
+    --danger:       #ef4444;
+    --success:      #22c55e;
+    --warning:      #f59e0b;
+    --excellent:    #8b5cf6;
+    --good:         #06b6d4;
+    --poor:         #f97316;
+    --font: 'SF Mono', 'Fira Code', 'JetBrains Mono', 'Consolas', monospace;
+}
+
+*, *::before, *::after {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    font-family: var(--font);
+    font-size: 13px;
+    line-height: 1.5;
+    color: var(--text);
+    background: var(--bg);
+    overflow: hidden;
+}
+
+h1 { font-size: 18px; font-weight: 600; }
+h2 { font-size: 15px; font-weight: 600; }
+h3 { font-size: 13px; font-weight: 600; }
+
+.muted { color: var(--muted); }
+
+a { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: underline; }

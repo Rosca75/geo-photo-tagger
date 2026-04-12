@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GeoPhotoTagger</title>
+    <link rel="stylesheet" href="/css/base.css">
+    <link rel="stylesheet" href="/css/layout.css">
+    <link rel="stylesheet" href="/css/table.css">
+    <link rel="stylesheet" href="/css/components.css">
+</head>
+<body>
+    <div class="app-layout">
+        <!-- ZONE A — Top Bar -->
+        <header class="topbar">
+            <h1>GeoPhotoTagger</h1>
+            <p class="muted">Add GPS coordinates to your camera photos</p>
+        </header>
+
+        <!-- ZONE B — Target Photos (left panel) -->
+        <main class="target-panel">
+            <p class="muted">Select a target folder to begin scanning...</p>
+        </main>
+
+        <!-- ZONE C — Match Details (right panel) -->
+        <aside class="match-panel">
+            <p class="muted">Select a photo to see match details</p>
+        </aside>
+
+        <!-- Status Bar -->
+        <footer class="statusbar">
+            <span>Ready</span>
+        </footer>
+    </div>
+
+    <script type="module" src="/js/app.js"></script>
+</body>
+</html>
