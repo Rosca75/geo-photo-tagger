@@ -30,6 +30,8 @@
   border-bottom: 2px solid var(--border);
   white-space: nowrap;
   z-index: 1;
+  cursor: pointer;
+  user-select: none;
   transition: color var(--transition);
 }
 .photo-table th:hover { color: var(--primary); }
@@ -52,11 +54,22 @@
 }
 .photo-row:hover { background: var(--bg-subtle); }
 
+/* Alternating row stripes for visual scannability */
+.photo-row:nth-child(even)       { background: var(--bg-subtle); }
+.photo-row:nth-child(even):hover { background: #ECECEC; }
+
 /* Active / selected row — sky-blue left accent (matches .image-row.active) */
 .photo-row.selected {
   background: rgba(74, 144, 226, 0.08);
   border-left: 3px solid var(--primary-light);
 }
+
+/* ── Sort arrow indicators ────────────────────────────────────────── */
+
+/* Small chevron appended inside sortable column headers */
+.sort-arrow { font-size: 0.65rem; margin-left: 3px; opacity: 0.4; }
+th.sort-asc  .sort-arrow,
+th.sort-desc .sort-arrow { opacity: 1; color: var(--primary); }
 
 /* ── Column widths ────────────────────────────────────────────────── */
 
