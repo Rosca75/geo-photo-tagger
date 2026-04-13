@@ -82,6 +82,10 @@ geo-photo-tagger/
 ├── thumbnail.go         Thumbnail generation for JPG, PNG, DNG, ARW (not HEIC)
 ├── gpx_parser.go        GPX/KML/CSV track file parsing
 ├── types.go             Shared type definitions (no logic)
+├── logger.go            slog-based structured logging setup
+├── scanner_parallel.go  Parallel scan with worker pool
+├── app_write.go         GPS write/undo/batch Wails-bound methods
+├── exif_writer_helpers.go   decimal-to-DMS conversion for GPS write
 ├── wails.json           Wails config (name, version, author)
 ├── go.mod / go.sum
 ├── CLAUDE.md            This file — development guidelines
@@ -104,15 +108,15 @@ geo-photo-tagger/
         ├── app.js         Entry point — imports modules, wires init()
         ├── state.js       Shared state object (single source of truth)
         ├── api.js         All window.go.main.App.* calls (isolation layer)
-        ├── helpers.js     Pure utility functions
         ├── components.js  showToast(), showConfirm(), placeholder icons
         ├── scan.js        Folder scanning orchestration
         ├── browse.js      Native folder picker wrapper
         ├── matcher_ui.js  GPS match results display + scoring filters
-        ├── preview.js     Image preview panel (thumbnails + map preview)
-        ├── filters.js     Time-distance filters (10/30/50 min thresholds)
         ├── table.js       Results data table (target photos + matched GPS)
-        └── actions.js     applyGPS(), applyAll(), undoGPS()
+        ├── helpers.js     escapeHtml, formatDate shared utilities
+        ├── preview.js     Thumbnail preview card (Zone C header)
+        ├── filters.js     Match result filtering and sorting
+        └── actions.js     GPS apply, batch apply, undo handlers
 ```
 
 ---
@@ -245,24 +249,35 @@ export const state = {
 
 ## 9. Design Tokens
 
-Dark navy/teal theme — same palette as dedup-photos for consistency.
+Light professional theme — same palette as dedup-photos for visual consistency.
+Reference implementation: https://github.com/Rosca75/dedup-photos/tree/main/static/css
 
-```css
+css
 :root {
-    --bg:           #0f1419;
-    --bg-card:      #1a2332;
-    --bg-hover:     #253345;
-    --border:       #2a3a4e;
-    --text:         #e2e8f0;
-    --muted:        #5a6a7a;
-    --accent:       #2dd4bf;    /* teal — primary accent */
-    --danger:       #ef4444;    /* red — destructive actions */
-    --success:      #22c55e;    /* green — GPS applied */
-    --warning:      #f59e0b;    /* amber — low-confidence match */
-    --excellent:    #8b5cf6;    /* purple — score >= 90 */
-    --good:         #06b6d4;    /* cyan — score 50–89 */
-    --poor:         #f97316;    /* orange — score < 50 */
-    --font: 'SF Mono', 'Fira Code', 'JetBrains Mono', 'Consolas', monospace;
+    /* Primary */
+    --primary:          #1A3A5C;   /* Deep blue — buttons, headings, strong UI */
+    --primary-light:    #4A90E2;   /* Sky blue  — accents, focus rings, links  */
+
+    /* Status */
+    --success:          #50C878;   /* Mint green — GPS applied, confirmed       */
+    --danger:           #E74C3C;   /* Red        — errors, destructive actions  */
+    --warning:          #F5A623;   /* Orange     — low-confidence matches       */
+
+    /* Neutrals */
+    --text:             #2D2D2D;   /* Dark grey  — main body text              */
+    --text-light:       #6B6B6B;   /* Medium grey — secondary / muted text     */
+    --border:           #E0E0E0;   /* Light grey — dividers, input borders     */
+    --bg-subtle:        #F5F5F5;   /* Very light grey — alternating rows, cards */
+    --bg:               #FFFFFF;   /* White — main page background             */
+    --black:            #121212;   /* Deep black — headings                    */
+
+    /* Score-quality badges */
+    --excellent:        #1A3A5C;   /* Score >= 90 — deep blue (primary)        */
+    --good:             #4A90E2;   /* Score 50-89 — sky blue (primary-light)   */
+    --poor:             #F5A623;   /* Score < 50 — orange (warning)            */
+
+    /* Typography */
+    --font: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
 }
 ```
 
