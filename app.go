@@ -23,8 +23,12 @@ type App struct {
 	// referencePhotos accumulates geolocated photos from all reference folders.
 	referencePhotos []ReferencePhoto
 
-	// gpsTrackPoints holds all points from imported GPX/KML/CSV track files.
+	// gpsTrackPoints holds all track points accumulated from every imported file.
 	gpsTrackPoints []GPSTrackPoint
+
+	// gpsTrackFiles holds one descriptor per imported track file (path, point count).
+	// Used by GetGPSTracks() so the frontend can list what has been imported.
+	gpsTrackFiles []GPSTrackFile
 
 	// matchResults stores the output of the GPS matching engine.
 	matchResults []MatchResult
@@ -84,12 +88,6 @@ func (a *App) ScanTargetFolder(path string) ([]TargetPhoto, error) {
 // Appends to the existing list — multiple reference folders are supported.
 // TODO: Implement in Phase 2
 func (a *App) AddReferenceFolder(path string) map[string]interface{} {
-	return map[string]interface{}{"status": "not_implemented", "path": path}
-}
-
-// ImportGPSTrack parses a GPX, KML, or CSV file and stores the track points.
-// TODO: Implement in Phase 3
-func (a *App) ImportGPSTrack(path string) map[string]interface{} {
 	return map[string]interface{}{"status": "not_implemented", "path": path}
 }
 

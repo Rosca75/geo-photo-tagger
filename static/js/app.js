@@ -4,6 +4,7 @@
 
 import { state } from './state.js';
 import { initScan } from './scan.js';
+import { initTrack } from './track.js';
 
 // init wires up all UI modules after the DOM is ready.
 function init() {
@@ -17,6 +18,7 @@ function init() {
     }
 
     initScan();
+    initTrack();
     console.log('GeoPhotoTagger ready. State:', state);
 }
 
