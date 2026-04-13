@@ -7,7 +7,7 @@ package main
 import (
 	"context"
 	"fmt"
-	"log"
+	"log/slog"
 
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
@@ -50,6 +50,9 @@ func NewApp() *App {
 // It stores the context which is required for runtime.OpenDirectoryDialog etc.
 func (a *App) startup(ctx context.Context) {
 	a.ctx = ctx
+	// Enable debug logging during development so per-file EXIF timing is visible.
+	// Change to setupLogger(false) for production builds.
+	setupLogger(true)
 }
 
 // OpenFolderDialog opens the native OS folder picker dialog.
@@ -71,7 +74,8 @@ func (a *App) ScanTargetFolder(path string) ([]TargetPhoto, error) {
 		Message:    "Scanning for photos without GPS...",
 	}
 
-	photos, err := ScanForTargetPhotos(path)
+	// Use the parallel scanner — 0 means "default workers" (min(NumCPU, 8)).
+	photos, err := a.ScanForTargetPhotosParallel(path, 0)
 	if err != nil {
 		a.scanStatus = ScanStatus{Phase: "idle", Message: err.Error()}
 		return nil, err
@@ -94,7 +98,7 @@ func (a *App) ScanTargetFolder(path string) ([]TargetPhoto, error) {
 func (a *App) GetThumbnail(path string) string {
 	thumb, err := GenerateThumbnail(path, 200)
 	if err != nil {
-		log.Printf("Thumbnail error for %s: %v", path, err)
+		slog.Warn("thumbnail_failed", "path", path, "error", err.Error())
 		return ""
 	}
 	return thumb
