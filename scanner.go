@@ -9,10 +9,11 @@ package main
 
 import (
 	"fmt"
-	"log"
-	"os"
+	"io/fs"
+	"log/slog"
 	"path/filepath"
 	"strings"
+	"time"
 )
 
 // isTargetExtension returns true if ext (lowercase) is a supported
@@ -30,37 +31,54 @@ func isTargetExtension(ext string) bool {
 //
 // Files that already have GPS coordinates are silently skipped — they don't
 // need tagging. Files with unreadable EXIF are also skipped with a log warning.
+//
+// Uses filepath.WalkDir (Go 1.16+) instead of the legacy filepath.Walk.
+// WalkDir avoids an extra os.Lstat syscall per entry because fs.DirEntry
+// already carries the file type from the directory read. On NAS/SMB mounts,
+// each saved stat is a saved network round-trip.
 func ScanForTargetPhotos(folderPath string) ([]TargetPhoto, error) {
 	var results []TargetPhoto
 
-	// walkFn is invoked by filepath.Walk for every file and directory.
-	walkFn := func(path string, info os.FileInfo, err error) error {
+	walkStart := time.Now()
+
+	// walkFn is invoked by filepath.WalkDir for every file and directory.
+	// The fs.DirEntry (d) argument carries type info without a stat syscall.
+	walkFn := func(path string, d fs.DirEntry, err error) error {
 		// Skip entries we cannot access (permission error, broken symlink, etc.)
 		if err != nil {
-			log.Printf("Skipping inaccessible path %q: %v", path, err)
+			slog.Warn("walk_inaccessible", "path", path, "error", err)
 			return nil // returning nil continues the walk
 		}
 
-		// filepath.Walk recurses into subdirectories automatically
-		if info.IsDir() {
+		// WalkDir recurses into subdirectories automatically
+		if d.IsDir() {
 			return nil
 		}
 
-		// Filter to supported target extensions (compare lowercase)
+		// Filter to supported target extensions (compare lowercase).
+		// Doing this before d.Info() avoids a stat syscall for non-photo files.
 		ext := strings.ToLower(filepath.Ext(path))
 		if !isTargetExtension(ext) {
 			return nil
 		}
 
-		// Read EXIF to check for GPS and extract the timestamp
-		exifData, err := ReadEXIF(path)
+		// Read EXIF using the lightweight scan reader (no maker notes, LimitReader).
+		exifData, err := ReadEXIFForScan(path)
 		if err != nil {
-			log.Printf("EXIF error for %q: %v — skipping", path, err)
+			slog.Warn("exif_read_failed", "path", path, "error", err.Error(), "extension", ext)
 			return nil
 		}
 
 		// Photos with GPS already don't need tagging — skip them
 		if exifData.HasGPS {
+			return nil
+		}
+
+		// Call d.Info() only for files that will appear in results.
+		// This defers the stat syscall until we know we need the file size.
+		info, err := d.Info()
+		if err != nil {
+			slog.Warn("stat_failed", "path", path, "error", err)
 			return nil
 		}
 
@@ -84,10 +102,16 @@ func ScanForTargetPhotos(folderPath string) ([]TargetPhoto, error) {
 		return nil
 	}
 
-	// Perform the recursive directory walk
-	if err := filepath.Walk(folderPath, walkFn); err != nil {
+	// Perform the recursive directory walk using the efficient WalkDir API
+	if err := filepath.WalkDir(folderPath, walkFn); err != nil {
 		return nil, fmt.Errorf("walking folder %q: %w", folderPath, err)
 	}
+
+	slog.Info("scan_target_complete",
+		"folder", folderPath,
+		"targets_found", len(results),
+		"walk_duration_ms", time.Since(walkStart).Milliseconds(),
+	)
 
 	return results, nil
 }
@@ -107,26 +131,33 @@ func isReferenceExtension(ext string) bool {
 // ScanForReferencePhotos walks folderPath recursively and returns every photo
 // that has GPS EXIF data. These become the coordinate sources for matching.
 // Only photos with both GPS and a valid DateTimeOriginal are included.
+//
+// Uses filepath.WalkDir (Go 1.16+) — see ScanForTargetPhotos for rationale.
 func ScanForReferencePhotos(folderPath string) ([]ReferencePhoto, error) {
 	var results []ReferencePhoto
 
-	walkFn := func(path string, info os.FileInfo, err error) error {
+	walkStart := time.Now()
+
+	// walkFn uses fs.DirEntry to avoid the extra stat syscall per entry.
+	walkFn := func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
-			log.Printf("Skipping inaccessible path %q: %v", path, err)
+			slog.Warn("walk_inaccessible", "path", path, "error", err)
 			return nil
 		}
-		if info.IsDir() {
+		if d.IsDir() {
 			return nil
 		}
 
+		// Filter by extension before reading EXIF (avoids stat for non-photos)
 		ext := strings.ToLower(filepath.Ext(path))
 		if !isReferenceExtension(ext) {
 			return nil
 		}
 
-		exifData, err := ReadEXIF(path)
+		// Read EXIF using the lightweight scan reader (no maker notes, LimitReader).
+		exifData, err := ReadEXIFForScan(path)
 		if err != nil {
-			log.Printf("EXIF error for %q: %v — skipping", path, err)
+			slog.Warn("exif_read_failed", "path", path, "error", err.Error(), "extension", ext)
 			return nil
 		}
 
@@ -152,9 +183,15 @@ func ScanForReferencePhotos(folderPath string) ([]ReferencePhoto, error) {
 		return nil
 	}
 
-	if err := filepath.Walk(folderPath, walkFn); err != nil {
+	if err := filepath.WalkDir(folderPath, walkFn); err != nil {
 		return nil, fmt.Errorf("walking folder %q: %w", folderPath, err)
 	}
+
+	slog.Info("scan_reference_complete",
+		"folder", folderPath,
+		"references_found", len(results),
+		"walk_duration_ms", time.Since(walkStart).Milliseconds(),
+	)
 
 	return results, nil
 }
