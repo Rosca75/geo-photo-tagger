@@ -1,21 +1,22 @@
-// matcher_ui.js — GPS matching UI (Phase 4)
+// matcher_ui.js — GPS matching UI (Phase 4/5)
 // Handles the Match All button, threshold selector, and Zone C detail panel.
-// After RunMatching completes, re-renders the table with score badges.
+// After RunMatching completes, re-renders the table with score badges and
+// dispatches 'match-complete' so filters.js can auto-apply.
 // Listens for the 'photo-selected' DOM event fired by table.js.
 
 import { state } from './state.js';
 import { runMatching } from './api.js';
 import { renderTable } from './table.js';
+import { escapeHtml, formatDate } from './helpers.js';
+import { renderPreview } from './preview.js';
 
-// initMatcher wires up the Match All button, threshold buttons, and Zone C listener.
-// Call once from app.js after DOMContentLoaded.
+// initMatcher wires up the Match All button, threshold buttons, Zone C listener,
+// and accept/reject event delegation on the match panel.
 export function initMatcher() {
     const matchBtn = document.getElementById('btn-match-all');
-    if (matchBtn) {
-        matchBtn.addEventListener('click', handleMatchAllClick);
-    }
+    if (matchBtn) matchBtn.addEventListener('click', handleMatchAllClick);
 
-    // Wire threshold preset buttons
+    // Threshold preset buttons (10 / 30 / 60 min)
     document.querySelectorAll('.threshold-btn').forEach(btn => {
         btn.addEventListener('click', () => {
             const val = parseInt(btn.dataset.minutes, 10);
@@ -25,6 +26,10 @@ export function initMatcher() {
 
     // Listen for row-selection events fired by table.js
     document.addEventListener('photo-selected', e => showPhotoDetail(e.detail.photo));
+
+    // Delegate accept/reject button clicks within Zone C
+    const panel = document.querySelector('.match-panel');
+    if (panel) panel.addEventListener('click', handlePanelClick);
 }
 
 // setThreshold updates state.matchThreshold and marks the active button.
@@ -37,23 +42,19 @@ function setThreshold(minutes, activeBtn) {
 // handleMatchAllClick runs the GPS matching engine and refreshes the UI.
 async function handleMatchAllClick() {
     if (state.targetPhotos.length === 0) {
-        showZoneMessage('Scan a target folder first.');
-        return;
+        showZoneMessage('Scan a target folder first.'); return;
     }
     if (state.referenceFolders.length === 0 && state.gpsTrackFiles.length === 0) {
-        showZoneMessage('Add a reference folder or import a GPS track first.');
-        return;
+        showZoneMessage('Add a reference folder or import a GPS track first.'); return;
     }
-
     setMatchingIndicator(true);
-
     try {
         const results = await runMatching({ maxTimeDeltaMinutes: state.matchThreshold });
         state.matchResults = Array.isArray(results) ? results : [];
-
-        // Re-render table so score badges appear
         renderTable(state.targetPhotos);
         updateStatusBarCounts();
+        // Notify filters.js to auto-apply after matching
+        document.dispatchEvent(new CustomEvent('match-complete'));
     } catch (err) {
         console.error('Matching failed:', err);
         showZoneMessage('Matching failed: ' + String(err));
@@ -66,13 +67,12 @@ async function handleMatchAllClick() {
 function updateStatusBarCounts() {
     const el = document.getElementById('status-bar-text');
     if (!el || !state.matchResults) return;
-
-    const total = state.targetPhotos.length;
+    const total   = state.targetPhotos.length;
     const matched = state.matchResults.filter(r => r.bestCandidate).length;
     el.textContent = `${total} target photo${total !== 1 ? 's' : ''} \u2502 ${matched} matched \u2502 ${total - matched} unmatched`;
 }
 
-// setMatchingIndicator shows/hides a "Matching…" indicator in the scan indicator slot.
+// setMatchingIndicator shows/hides the "Matching…" label in the indicator slot.
 function setMatchingIndicator(visible) {
     const el = document.getElementById('scan-indicator');
     if (!el) return;
@@ -85,27 +85,27 @@ function setMatchingIndicator(visible) {
 export function showPhotoDetail(photo) {
     const panel = document.querySelector('.match-panel');
     if (!panel) return;
-
-    // Find the MatchResult for this photo
     const result = state.matchResults
         ? state.matchResults.find(r => r.targetPath === photo.path)
         : null;
-
+    // Render the text detail first, then prepend the thumbnail card
     panel.innerHTML = buildDetailHTML(photo, result);
+    renderPreview(photo, panel);
 }
 
 // buildDetailHTML returns the inner HTML for the Zone C match detail panel.
+// Accept/reject buttons are rendered per candidate so the user can choose
+// which GPS source to apply to this photo.
 function buildDetailHTML(photo, result) {
-    const dateStr = formatDate(photo.dateTimeOriginal);
+    const acc = state.acceptedMatches.get(photo.path);
     let html = `
         <div class="detail-header">
             <div class="detail-filename">${escapeHtml(photo.filename)}</div>
-            <div class="detail-meta muted">${dateStr}${photo.cameraModel ? ' &middot; ' + escapeHtml(photo.cameraModel) : ''}</div>
+            <div class="detail-meta muted">${formatDate(photo.dateTimeOriginal)}${photo.cameraModel ? ' &middot; ' + escapeHtml(photo.cameraModel) : ''}</div>
         </div>`;
 
     if (!result || !result.bestCandidate) {
-        html += `<p class="muted panel-placeholder" style="margin-top:1rem;">No GPS match found within ${state.matchThreshold} minutes.</p>`;
-        return html;
+        return html + `<p class="muted panel-placeholder" style="margin-top:1rem;">No GPS match found within ${state.matchThreshold} minutes.</p>`;
     }
 
     const best = result.bestCandidate;
@@ -118,30 +118,37 @@ function buildDetailHTML(photo, result) {
                 <span class="muted">${best.timeDeltaFormatted}</span>
                 ${best.isInterpolated ? '<span class="chip-format" style="margin-left:4px">interpolated</span>' : ''}
             </div>
-            <div class="detail-gps">
-                <span class="muted">GPS:</span>
-                ${best.gps.latitude.toFixed(6)}, ${best.gps.longitude.toFixed(6)}
-            </div>
+            <div class="detail-gps"><span class="muted">GPS:</span> ${best.gps.latitude.toFixed(6)}, ${best.gps.longitude.toFixed(6)}</div>
         </div>`;
 
-    if (result.candidates && result.candidates.length > 1) {
-        html += `<div class="detail-section"><div class="detail-section-title">All Candidates (${result.candidates.length})</div>`;
+    if (result.candidates && result.candidates.length > 0) {
+        html += `<div class="detail-section"><div class="detail-section-title">Candidates (${result.candidates.length})</div>`;
         result.candidates.forEach(c => {
+            // Mark this row as accepted if its coords match the stored accepted entry
+            const isAcc = acc
+                && acc.sourcePath === c.sourcePath
+                && Math.abs(acc.lat - c.gps.latitude) < 1e-6;
             html += `
-                <div class="detail-candidate">
+                <div class="detail-candidate${isAcc ? ' accepted' : ''}">
                     <span class="badge ${scoreBadgeClass(c.score)}">${c.score}</span>
                     <span class="detail-source">${escapeHtml(c.sourceFilename)}</span>
                     <span class="muted">${c.timeDeltaFormatted}</span>
                     <span class="muted" style="font-size:0.75rem">${c.source === 'track' ? 'track' : 'photo'}</span>
+                    <button class="btn btn-sm btn-primary btn-accept"
+                        data-path="${escapeHtml(photo.path)}"
+                        data-lat="${c.gps.latitude}" data-lon="${c.gps.longitude}"
+                        data-score="${c.score}" data-source="${escapeHtml(c.source || '')}"
+                        data-source-path="${escapeHtml(c.sourcePath || '')}">Accept</button>
+                    <button class="btn btn-sm btn-secondary btn-reject"
+                        data-path="${escapeHtml(photo.path)}">Reject</button>
                 </div>`;
         });
         html += '</div>';
     }
-
     return html;
 }
 
-// scoreBadgeClass maps a score to a CSS badge class.
+// scoreBadgeClass maps a numeric score to a CSS badge class name.
 function scoreBadgeClass(score) {
     if (score >= 90) return 'badge-excellent';
     if (score >= 50) return 'badge-matched';
@@ -154,18 +161,44 @@ function showZoneMessage(msg) {
     if (panel) panel.innerHTML = `<p class="muted panel-placeholder" style="margin-top:2rem;">${escapeHtml(msg)}</p>`;
 }
 
-// formatDate converts an ISO 8601 string (from Go time.Time) to locale string.
-function formatDate(raw) {
-    if (!raw || raw === '0001-01-01T00:00:00Z') return '\u2014';
-    return new Date(raw).toLocaleString();
+// handlePanelClick delegates click events within Zone C to the correct handler.
+function handlePanelClick(e) {
+    const acceptBtn = e.target.closest('.btn-accept');
+    const rejectBtn = e.target.closest('.btn-reject');
+    if (acceptBtn)      handleAccept(acceptBtn);
+    else if (rejectBtn) handleReject(rejectBtn);
 }
 
-// escapeHtml prevents XSS when inserting user-controlled strings into innerHTML.
-function escapeHtml(str) {
-    if (!str) return '';
-    return str
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;');
+// handleAccept stores the chosen candidate in state.acceptedMatches and refreshes.
+function handleAccept(btn) {
+    const d = btn.dataset;
+    state.acceptedMatches.set(d.path, {
+        lat: parseFloat(d.lat), lon: parseFloat(d.lon),
+        score: parseInt(d.score, 10), source: d.source, sourcePath: d.sourcePath
+    });
+    refreshAfterDecision(d.path, true);
+}
+
+// handleReject removes the accepted entry from state and refreshes.
+function handleReject(btn) {
+    state.acceptedMatches.delete(btn.dataset.path);
+    refreshAfterDecision(btn.dataset.path, false);
+}
+
+// refreshAfterDecision updates the table-row status badge and re-renders Zone C.
+function refreshAfterDecision(targetPath, accepted) {
+    // Update the status badge in the table without a full re-render
+    const row = document.querySelector(`.photo-row[data-path="${CSS.escape(targetPath)}"]`);
+    if (row) {
+        const badge = row.querySelector('.col-status .badge');
+        if (badge) {
+            badge.className = `badge ${accepted ? 'badge-applied' : 'badge-matched'}`;
+            badge.textContent = accepted ? 'accepted' : 'matched';
+        }
+    }
+    // Re-render the detail panel so the accepted row gets the highlight class
+    if (state.selectedPhoto) {
+        const photo = state.targetPhotos.find(p => p.path === state.selectedPhoto);
+        if (photo) showPhotoDetail(photo);
+    }
 }

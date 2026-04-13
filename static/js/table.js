@@ -3,6 +3,7 @@
 // Each row: row number, filename, date/time, camera model, status badge.
 
 import { state } from './state.js';
+import { escapeHtml } from './helpers.js';
 
 // renderTable replaces the content of #target-table-container with a fresh
 // table built from the given photos array.
@@ -107,12 +108,3 @@ function selectPhoto(photo, tr) {
     document.dispatchEvent(new CustomEvent('photo-selected', { detail: { photo } }));
 }
 
-// escapeHtml prevents XSS when inserting user-supplied strings into innerHTML.
-function escapeHtml(str) {
-    if (!str) return '';
-    return str
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;');
-}

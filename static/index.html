@@ -38,14 +38,28 @@
                 <button class="btn btn-sm btn-secondary threshold-btn" data-minutes="60">60 min</button>
                 <span id="scan-indicator" class="scan-indicator hidden">Scanning&#8230;</span>
             </div>
-            <!-- Row 3: Reference folders list -->
+            <!-- Row 3: Filter + Sort controls -->
+            <div class="topbar-row">
+                <span class="label-small">Filter:</span>
+                <button class="btn btn-sm btn-secondary filter-btn active" data-filter="all">All</button>
+                <button class="btn btn-sm btn-secondary filter-btn" data-filter="matched">Matched</button>
+                <button class="btn btn-sm btn-secondary filter-btn" data-filter="unmatched">Unmatched</button>
+                <span class="label-small" style="margin-left:auto">Sort:</span>
+                <select id="sort-select" class="sort-select">
+                    <option value="filename">Filename</option>
+                    <option value="date">Date</option>
+                    <option value="score">Score &#8595;</option>
+                    <option value="status">Status</option>
+                </select>
+            </div>
+            <!-- Row 4: Reference folders list -->
             <div id="reference-list-row" class="topbar-row track-list-row">
                 <span class="label-small">References:</span>
                 <div id="reference-list" class="chip-list">
                     <span class="muted small">No reference folders added</span>
                 </div>
             </div>
-            <!-- Row 4: GPS track files list -->
+            <!-- Row 5: GPS track files list -->
             <div id="track-list-row" class="topbar-row track-list-row">
                 <span class="label-small">GPS Tracks:</span>
                 <div id="track-list" class="chip-list">
