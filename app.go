@@ -17,6 +17,10 @@ type App struct {
 	// ctx is the Wails application context — needed for native OS dialogs.
 	ctx context.Context
 
+	// targetFolder is the path last passed to ScanTargetFolder.
+	// Used by ClearAllBackups to know which folder to search for .bak files.
+	targetFolder string
+
 	// targetPhotos holds photos without GPS, set by ScanTargetFolder.
 	targetPhotos []TargetPhoto
 
@@ -74,6 +78,9 @@ func (a *App) ScanTargetFolder(path string) ([]TargetPhoto, error) {
 		Message:    "Scanning for photos without GPS...",
 	}
 
+	// Remember the target folder so ClearAllBackups knows where to look later.
+	a.targetFolder = path
+
 	// Use the parallel scanner — 0 means "default workers" (min(NumCPU, 8)).
 	photos, err := a.ScanForTargetPhotosParallel(path, 0)
 	if err != nil {
@@ -102,19 +109,6 @@ func (a *App) GetThumbnail(path string) string {
 		return ""
 	}
 	return thumb
-}
-
-// ApplyGPS writes GPS coordinates to a single target photo's EXIF data.
-// Creates a .bak backup before modifying the file.
-// TODO: Implement in Phase 6
-func (a *App) ApplyGPS(targetPath string, lat float64, lon float64) map[string]interface{} {
-	return map[string]interface{}{"status": "not_implemented"}
-}
-
-// ApplyAllMatches batch-applies GPS to all accepted matches with backups.
-// TODO: Implement in Phase 6
-func (a *App) ApplyAllMatches() map[string]interface{} {
-	return map[string]interface{}{"status": "not_implemented"}
 }
 
 // GetScanStatus returns the current scan or match operation progress.

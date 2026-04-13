@@ -189,6 +189,19 @@ type EXIFData struct {
 	CameraModel string `json:"cameraModel"`
 }
 
+// GPSApplyRequest is the payload sent by the frontend for each photo in a batch GPS write.
+// ApplyBatchGPS accepts a slice of these so the JS acceptedMatches Map can be sent over.
+type GPSApplyRequest struct {
+	// TargetPath is the absolute path to the photo file that should be geotagged.
+	TargetPath string `json:"targetPath"`
+
+	// Lat is the decimal-degree latitude to write (positive = North).
+	Lat float64 `json:"lat"`
+
+	// Lon is the decimal-degree longitude to write (positive = East).
+	Lon float64 `json:"lon"`
+}
+
 // GPSTrackFile describes a single imported GPS track file.
 // Returned by ImportGPSTrack and GetGPSTracks so the frontend can list what was loaded.
 type GPSTrackFile struct {

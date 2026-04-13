@@ -145,6 +145,26 @@ function buildDetailHTML(photo, result) {
         });
         html += '</div>';
     }
+
+    // Apply GPS / Undo section — shown below the candidates list.
+    // "applied" status: show Undo button + Applied badge.
+    // Accepted (but not yet applied): show Apply GPS button.
+    if (photo.status === 'applied') {
+        html += `
+        <div class="detail-section" style="margin-top:var(--space-sm)">
+            <button class="btn btn-sm btn-secondary btn-undo"
+                data-path="${escapeHtml(photo.path)}">Undo</button>
+            <span class="badge badge-applied" style="margin-left:var(--space-xs)">Applied \u2713</span>
+        </div>`;
+    } else if (acc) {
+        html += `
+        <div class="detail-section" style="margin-top:var(--space-sm)">
+            <button class="btn btn-sm btn-primary btn-apply-single"
+                data-path="${escapeHtml(photo.path)}"
+                data-lat="${acc.lat}" data-lon="${acc.lon}">Apply GPS</button>
+        </div>`;
+    }
+
     return html;
 }
 

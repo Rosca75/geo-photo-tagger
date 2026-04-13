@@ -74,9 +74,20 @@ export async function applyGPS(targetPath, lat, lon) {
     return window.go.main.App.ApplyGPS(targetPath, lat, lon);
 }
 
-// Batch-apply GPS coordinates to all accepted matches.
-export async function applyAllMatches() {
-    return window.go.main.App.ApplyAllMatches();
+// Batch-apply GPS coordinates to an explicit list of {targetPath, lat, lon} objects.
+// The frontend builds this list from state.acceptedMatches before calling.
+export async function applyBatchGPS(matches) {
+    return window.go.main.App.ApplyBatchGPS(matches);
+}
+
+// Restore a single target photo from its .bak backup file.
+export async function undoGPS(targetPath) {
+    return window.go.main.App.UndoGPS(targetPath);
+}
+
+// Delete all .bak files in the target folder scanned this session.
+export async function clearAllBackups() {
+    return window.go.main.App.ClearAllBackups();
 }
 
 // Get the current scan/match progress status.
