@@ -22,8 +22,19 @@ export async function scanTargetFolder(path) {
 }
 
 // Add a reference folder containing geolocated photos.
+// Returns { path, photoCount } on success.
 export async function addReferenceFolder(path) {
     return window.go.main.App.AddReferenceFolder(path);
+}
+
+// Return the list of reference folders currently loaded.
+export async function getReferenceFolders() {
+    return window.go.main.App.GetReferenceFolders();
+}
+
+// Remove a reference folder and its photos from the pool.
+export async function removeReferenceFolder(path) {
+    return window.go.main.App.RemoveReferenceFolder(path);
 }
 
 // Import a GPS track file (GPX, KML, or CSV).

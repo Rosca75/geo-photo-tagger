@@ -20,19 +20,32 @@
 
         <!-- ZONE A — Top Bar (full width) -->
         <header class="topbar">
+            <!-- Row 1: Target folder + action buttons -->
             <div class="topbar-row">
                 <span class="app-title">GeoPhotoTagger</span>
                 <input id="target-folder-path" class="folder-input"
                        type="text" placeholder="Target folder (photos without GPS)..." readonly>
                 <button id="btn-browse" class="btn btn-primary">Browse</button>
-                <button class="btn btn-secondary" disabled title="Available in Phase 2">+ Reference</button>
+                <button id="btn-add-reference" class="btn btn-secondary">+ Reference</button>
                 <button id="btn-import-track" class="btn btn-secondary">Import Track</button>
-                <button class="btn btn-accent" disabled title="Available in Phase 4">Match All</button>
             </div>
+            <!-- Row 2: Match controls -->
             <div class="topbar-row">
-                <span id="scan-indicator" class="scan-indicator hidden">Scanning...</span>
+                <button id="btn-match-all" class="btn btn-accent">Match All</button>
+                <span class="label-small">Max delta:</span>
+                <button class="btn btn-sm btn-secondary threshold-btn" data-minutes="10">10 min</button>
+                <button class="btn btn-sm btn-secondary threshold-btn active" data-minutes="30">30 min</button>
+                <button class="btn btn-sm btn-secondary threshold-btn" data-minutes="60">60 min</button>
+                <span id="scan-indicator" class="scan-indicator hidden">Scanning&#8230;</span>
             </div>
-            <!-- GPS track files list — populated by track.js after imports -->
+            <!-- Row 3: Reference folders list -->
+            <div id="reference-list-row" class="topbar-row track-list-row">
+                <span class="label-small">References:</span>
+                <div id="reference-list" class="chip-list">
+                    <span class="muted small">No reference folders added</span>
+                </div>
+            </div>
+            <!-- Row 4: GPS track files list -->
             <div id="track-list-row" class="topbar-row track-list-row">
                 <span class="label-small">GPS Tracks:</span>
                 <div id="track-list" class="chip-list">
@@ -55,7 +68,7 @@
 
         <!-- Status Bar -->
         <footer class="statusbar">
-            <span id="status-bar-text">Ready — select a target folder to begin</span>
+            <span id="status-bar-text">Ready &#8212; select a target folder to begin</span>
         </footer>
 
     </div>

@@ -41,46 +41,70 @@ function buildHeader() {
             <th class="col-filename">Filename</th>
             <th class="col-date">Date / Time</th>
             <th class="col-camera">Camera</th>
+            <th class="col-score">Score</th>
             <th class="col-status">Status</th>
         </tr>`;
     return thead;
 }
 
 // buildRow creates one <tr> for a single target photo.
-// Clicking the row selects it and updates state.selectedPhoto.
+// Clicking the row selects it, updates state.selectedPhoto, and fires 'photo-selected'.
 function buildRow(photo, idx) {
     const tr = document.createElement('tr');
     tr.className = 'photo-row';
-    // Store path in a data attribute for later CSS.escape-safe lookup
     tr.dataset.path = photo.path;
 
     // Format the EXIF datetime (Go serialises time.Time as ISO 8601 string)
     const rawDate = photo.dateTimeOriginal;
     const dateStr = rawDate && rawDate !== '0001-01-01T00:00:00Z'
         ? new Date(rawDate).toLocaleString()
-        : '\u2014'; // em dash for missing timestamp
+        : '\u2014';
+
+    // Look up match result for this photo from state.matchResults
+    const result = state.matchResults
+        ? state.matchResults.find(r => r.targetPath === photo.path)
+        : null;
+    const best = result && result.bestCandidate ? result.bestCandidate : null;
+
+    // Score badge
+    const scoreBadge = best
+        ? `<span class="badge ${scoreBadgeClass(best.score)}">${best.score}</span>`
+        : '<span class="muted">\u2014</span>';
+
+    // Status badge
+    const statusClass = best ? 'badge-matched' : 'badge-unmatched';
+    const statusLabel = best ? 'matched' : 'unmatched';
 
     tr.innerHTML = `
         <td class="col-num">${idx + 1}</td>
         <td class="col-filename" title="${escapeHtml(photo.path)}">${escapeHtml(photo.filename)}</td>
         <td class="col-date">${dateStr}</td>
         <td class="col-camera">${escapeHtml(photo.cameraModel || '\u2014')}</td>
-        <td class="col-status"><span class="badge badge-unmatched">unmatched</span></td>`;
+        <td class="col-score">${scoreBadge}</td>
+        <td class="col-status"><span class="badge ${statusClass}">${statusLabel}</span></td>`;
 
     tr.addEventListener('click', () => selectPhoto(photo, tr));
     return tr;
 }
 
-// selectPhoto marks a row as selected and updates shared state.
-// Zone C detail panel will use state.selectedPhoto in Phase 5.
+// scoreBadgeClass maps a numeric score to a CSS badge class name.
+function scoreBadgeClass(score) {
+    if (score >= 90) return 'badge-excellent';
+    if (score >= 50) return 'badge-matched';
+    return 'badge-poor';
+}
+
+// selectPhoto marks a row as selected, updates shared state, and fires
+// 'photo-selected' so matcher_ui.js can update Zone C without a circular import.
 function selectPhoto(photo, tr) {
-    // Remove selection from all rows
     document.querySelectorAll('.photo-row.selected')
         .forEach(r => r.classList.remove('selected'));
 
-    // Mark this row
     tr.classList.add('selected');
     state.selectedPhoto = photo.path;
+
+    // Notify other modules that a photo was selected
+    document.dispatchEvent(new CustomEvent('photo-selected', { detail: { photo } }));
 }
 
 // escapeHtml prevents XSS when inserting user-supplied strings into innerHTML.

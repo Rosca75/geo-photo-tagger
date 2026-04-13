@@ -5,20 +5,21 @@
 import { state } from './state.js';
 import { initScan } from './scan.js';
 import { initTrack } from './track.js';
+import { initReference } from './reference.js';
+import { initMatcher } from './matcher_ui.js';
 
 // init wires up all UI modules after the DOM is ready.
 function init() {
     console.log('GeoPhotoTagger initialising...');
 
-    // Replace any <i data-feather="..."> placeholders with inline SVGs.
-    // Same pattern as dedup-photos — feather.replace() is a no-op if the
-    // library hasn't loaded yet (e.g. offline), so it won't break anything.
     if (typeof feather !== 'undefined') {
         feather.replace();
     }
 
     initScan();
     initTrack();
+    initReference();
+    initMatcher();
     console.log('GeoPhotoTagger ready. State:', state);
 }
 
