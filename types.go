@@ -202,6 +202,21 @@ type GPSApplyRequest struct {
 	Lon float64 `json:"lon"`
 }
 
+// DateRange defines a time window for filtering reference photos during scanning.
+// A zero-value range (both fields zero) means "no filtering — scan all".
+type DateRange struct {
+	// Start is the earliest allowed file modification time (inclusive).
+	Start time.Time
+
+	// End is the latest allowed file modification time (inclusive).
+	End time.Time
+}
+
+// IsZero returns true if no range was specified, meaning all files should be scanned.
+func (dr DateRange) IsZero() bool {
+	return dr.Start.IsZero() && dr.End.IsZero()
+}
+
 // GPSTrackFile describes a single imported GPS track file.
 // Returned by ImportGPSTrack and GetGPSTracks so the frontend can list what was loaded.
 type GPSTrackFile struct {

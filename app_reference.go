@@ -9,7 +9,10 @@ package main
 //   GetReferenceFolders()        → []ReferenceFolderInfo
 //   RemoveReferenceFolder(path)  → error
 
-import "fmt"
+import (
+	"fmt"
+	"time"
+)
 
 // ReferenceFolderInfo describes one successfully scanned reference folder.
 // Returned to the frontend so it can list what has been added.
@@ -25,6 +28,10 @@ type ReferenceFolderInfo struct {
 // the shared reference photo pool. If the same folder is added again, its
 // previously loaded photos are replaced with fresh data (useful when the folder
 // contents have changed on disk).
+//
+// If target photos have already been scanned, a date range filter is computed
+// from their timestamps to skip reference files that clearly can't match —
+// this avoids expensive EXIF reads on large libraries spanning many years.
 func (a *App) AddReferenceFolder(path string) (ReferenceFolderInfo, error) {
 	a.scanStatus = ScanStatus{
 		InProgress: true,
@@ -32,7 +39,11 @@ func (a *App) AddReferenceFolder(path string) (ReferenceFolderInfo, error) {
 		Message:    "Scanning reference folder...",
 	}
 
-	photos, err := ScanForReferencePhotos(path)
+	// Compute a date window from target photos to skip clearly irrelevant files.
+	// Returns a zero DateRange (scan everything) if no targets are loaded yet.
+	dateFilter := a.computeTargetDateRange()
+
+	photos, err := ScanForReferencePhotos(path, dateFilter)
 	if err != nil {
 		a.scanStatus = ScanStatus{Phase: "idle", Message: err.Error()}
 		return ReferenceFolderInfo{}, fmt.Errorf("scanning reference folder: %w", err)
@@ -99,4 +110,40 @@ func removePhotosFromFolder(photos []ReferencePhoto, sourceFolder string) []Refe
 		}
 	}
 	return out
+}
+
+// computeTargetDateRange returns a DateRange covering all target photo timestamps,
+// expanded by 48 hours on each side to account for timezone drift and file-copy
+// scenarios where filesystem mod times deviate from actual capture time.
+//
+// Returns a zero DateRange (meaning "scan everything") when:
+//   - no target photos are loaded, or
+//   - none of the loaded targets have a parseable DateTimeOriginal.
+func (a *App) computeTargetDateRange() DateRange {
+	if len(a.targetPhotos) == 0 {
+		return DateRange{}
+	}
+
+	var minT, maxT time.Time
+	for _, p := range a.targetPhotos {
+		if p.DateTimeOriginal.IsZero() {
+			continue
+		}
+		if minT.IsZero() || p.DateTimeOriginal.Before(minT) {
+			minT = p.DateTimeOriginal
+		}
+		if maxT.IsZero() || p.DateTimeOriginal.After(maxT) {
+			maxT = p.DateTimeOriginal
+		}
+	}
+
+	// If no targets had timestamps, fall back to scanning everything.
+	if minT.IsZero() {
+		return DateRange{}
+	}
+
+	// 48-hour margin on each side: generous enough to handle timezone differences
+	// between devices and mod-time drift from file copies.
+	margin := 48 * time.Hour
+	return DateRange{Start: minT.Add(-margin), End: maxT.Add(margin)}
 }
