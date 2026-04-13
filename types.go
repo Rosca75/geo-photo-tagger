@@ -188,3 +188,19 @@ type EXIFData struct {
 	// CameraModel is the camera/device model string from EXIF.
 	CameraModel string `json:"cameraModel"`
 }
+
+// GPSTrackFile describes a single imported GPS track file.
+// Returned by ImportGPSTrack and GetGPSTracks so the frontend can list what was loaded.
+type GPSTrackFile struct {
+	// Path is the absolute filesystem path to the track file.
+	Path string `json:"path"`
+
+	// Filename is just the base name (e.g. "hike.gpx") for display in the UI.
+	Filename string `json:"filename"`
+
+	// PointCount is the number of valid GPS track points parsed from the file.
+	PointCount int `json:"pointCount"`
+
+	// Format is the lowercase extension without the dot: "gpx", "kml", or "csv".
+	Format string `json:"format"`
+}

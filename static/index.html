@@ -26,11 +26,18 @@
                        type="text" placeholder="Target folder (photos without GPS)..." readonly>
                 <button id="btn-browse" class="btn btn-primary">Browse</button>
                 <button class="btn btn-secondary" disabled title="Available in Phase 2">+ Reference</button>
-                <button class="btn btn-secondary" disabled title="Available in Phase 3">Import Track</button>
+                <button id="btn-import-track" class="btn btn-secondary">Import Track</button>
                 <button class="btn btn-accent" disabled title="Available in Phase 4">Match All</button>
             </div>
             <div class="topbar-row">
                 <span id="scan-indicator" class="scan-indicator hidden">Scanning...</span>
+            </div>
+            <!-- GPS track files list — populated by track.js after imports -->
+            <div id="track-list-row" class="topbar-row track-list-row">
+                <span class="label-small">GPS Tracks:</span>
+                <div id="track-list" class="chip-list">
+                    <span class="muted small">No GPS tracks imported</span>
+                </div>
             </div>
         </header>
 

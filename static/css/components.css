@@ -141,6 +141,85 @@
   to   { opacity: 0; transform: translateY(12px); }
 }
 
+/* ── Track / folder chip list ────────────────────────────────────────── */
+
+/* Horizontal scrolling row that holds one chip per imported file */
+.chip-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-xs);
+  align-items: center;
+  flex: 1;
+}
+
+/* Label that precedes the chip list ("GPS Tracks:") */
+.label-small {
+  font-size: 0.75rem;
+  font-weight: var(--font-weight-semi);
+  color: var(--text-light);
+  white-space: nowrap;
+}
+
+/* Hide the GPS tracks row when empty, keep a minimal height when used */
+.track-list-row {
+  min-height: 0;
+  padding-top: 0;
+}
+
+/* Individual chip: coloured pill showing one imported track / folder */
+.folder-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+  background: var(--bg-subtle);
+  border: 1px solid var(--border);
+  border-radius: 99px;
+  padding: 2px var(--space-sm);
+  font-size: 0.75rem;
+  max-width: 260px;
+}
+
+/* Format badge inside the chip (GPX / KML / CSV) */
+.chip-format {
+  font-size: 0.65rem;
+  font-weight: var(--font-weight-semi);
+  color: var(--primary);
+  background: rgba(26, 58, 92, 0.1);
+  border-radius: 99px;
+  padding: 1px 5px;
+  white-space: nowrap;
+}
+
+/* Truncate long filenames with an ellipsis */
+.chip-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text);
+}
+
+/* Point count label inside the chip */
+.chip-count {
+  color: var(--text-light);
+  white-space: nowrap;
+}
+
+/* Remove (×) button inside the chip */
+.chip-remove {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--text-light);
+  font-size: 0.7rem;
+  line-height: 1;
+  padding: 0 2px;
+  transition: color var(--transition);
+}
+.chip-remove:hover { color: var(--danger); }
+
+/* Small utility class for de-emphasised text */
+.small { font-size: 0.8rem; }
+
 /* ── Confirm dialog (matching dedup-photos .confirm-overlay) ─────────── */
 
 .confirm-overlay {
