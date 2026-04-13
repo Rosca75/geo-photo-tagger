@@ -10,10 +10,11 @@
 .app-layout {
   display: grid;
   grid-template-areas:
-    "topbar  topbar"
-    "targets matches"
-    "status  status";
-  grid-template-columns: 45fr 55fr;
+    "topbar  topbar   topbar"
+    "targets resize   matches"
+    "status  status   status";
+  /* 5px centre column is the drag-resize handle */
+  grid-template-columns: 45fr 5px 55fr;
   grid-template-rows: auto 1fr auto;
   height: 100vh;
   /* 1 px gap shows --border colour between zones */
@@ -57,7 +58,22 @@
   background: var(--bg);
   overflow-y: auto;
   padding: var(--space-sm);
-  border-right: 1px solid var(--border);
+  /* border-right removed — resize handle is now the visual separator */
+}
+
+/* ── Resize handle between Zone B and Zone C ─────────────────────── */
+
+/* CSS-only visual handle; JS drag logic is a Phase 9 enhancement */
+.panel-resize-handle-h {
+  grid-area: resize;
+  width: 5px;
+  cursor: col-resize;
+  background: var(--border);
+  transition: background var(--transition);
+}
+.panel-resize-handle-h:hover,
+.panel-resize-handle-h.dragging {
+  background: var(--primary-light);
 }
 
 /* ── ZONE C — Match details (right panel) ────────────────────────── */
