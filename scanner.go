@@ -5,7 +5,7 @@ package main
 // Target photos lack GPS; reference photos have GPS coordinates.
 //
 // Phase 1: ScanForTargetPhotos (JPG/JPEG/DNG without GPS)
-// Phase 2: ScanForReferencePhotos (all formats with GPS)
+// Phase 2/4: ScanForReferencePhotos (all formats with GPS)
 
 import (
 	"fmt"
@@ -85,6 +85,73 @@ func ScanForTargetPhotos(folderPath string) ([]TargetPhoto, error) {
 	}
 
 	// Perform the recursive directory walk
+	if err := filepath.Walk(folderPath, walkFn); err != nil {
+		return nil, fmt.Errorf("walking folder %q: %w", folderPath, err)
+	}
+
+	return results, nil
+}
+
+// isReferenceExtension returns true if ext (lowercase) is a supported
+// reference photo format. Includes RAW formats that may carry GPS.
+func isReferenceExtension(ext string) bool {
+	switch ext {
+	case ".jpg", ".jpeg", ".png", ".dng", ".arw":
+		return true
+	}
+	return false
+	// NOTE: .heic / .heif omitted — goheif not yet in go.mod.
+	// HEIC files will be silently skipped during reference scanning.
+}
+
+// ScanForReferencePhotos walks folderPath recursively and returns every photo
+// that has GPS EXIF data. These become the coordinate sources for matching.
+// Only photos with both GPS and a valid DateTimeOriginal are included.
+func ScanForReferencePhotos(folderPath string) ([]ReferencePhoto, error) {
+	var results []ReferencePhoto
+
+	walkFn := func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			log.Printf("Skipping inaccessible path %q: %v", path, err)
+			return nil
+		}
+		if info.IsDir() {
+			return nil
+		}
+
+		ext := strings.ToLower(filepath.Ext(path))
+		if !isReferenceExtension(ext) {
+			return nil
+		}
+
+		exifData, err := ReadEXIF(path)
+		if err != nil {
+			log.Printf("EXIF error for %q: %v — skipping", path, err)
+			return nil
+		}
+
+		// Reference photos must have GPS — that is their entire purpose.
+		if !exifData.HasGPS {
+			return nil
+		}
+		// Also skip photos without a timestamp — we need it for matching.
+		if !exifData.HasDateTime {
+			return nil
+		}
+
+		results = append(results, ReferencePhoto{
+			Path:             path,
+			Filename:         filepath.Base(path),
+			Extension:        ext,
+			DateTimeOriginal: exifData.DateTimeOriginal,
+			GPS:              GPSCoord{Latitude: exifData.Latitude, Longitude: exifData.Longitude},
+			CameraModel:      exifData.CameraModel,
+			SourceFolder:     folderPath,
+			IsHEIC:           false,
+		})
+		return nil
+	}
+
 	if err := filepath.Walk(folderPath, walkFn); err != nil {
 		return nil, fmt.Errorf("walking folder %q: %w", folderPath, err)
 	}

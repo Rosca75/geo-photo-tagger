@@ -49,6 +49,13 @@
 /* Small size modifier */
 .btn-sm { padding: var(--space-xs) var(--space-sm); font-size: 0.75rem; }
 
+/* Active state for threshold preset buttons */
+.threshold-btn.active {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: #fff;
+}
+
 /* ── Folder path input ───────────────────────────────────────────────── */
 
 .folder-input {
@@ -219,6 +226,61 @@
 
 /* Small utility class for de-emphasised text */
 .small { font-size: 0.8rem; }
+
+/* ── Zone C match detail panel ───────────────────────────────────────── */
+
+.detail-header {
+  margin-bottom: var(--space-md);
+  padding-bottom: var(--space-sm);
+  border-bottom: 1px solid var(--border);
+}
+
+.detail-filename {
+  font-weight: var(--font-weight-semi);
+  font-size: 1rem;
+  color: var(--black);
+  word-break: break-all;
+}
+
+.detail-meta { font-size: 0.8rem; margin-top: 2px; }
+
+.detail-section {
+  margin-bottom: var(--space-md);
+}
+
+.detail-section-title {
+  font-size: 0.7rem;
+  font-weight: var(--font-weight-semi);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-light);
+  margin-bottom: var(--space-xs);
+}
+
+.detail-match-row,
+.detail-candidate {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: var(--space-xs) 0;
+  font-size: var(--font-size-small);
+  border-bottom: 1px solid var(--border);
+}
+
+.detail-source {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text);
+}
+
+.detail-gps {
+  font-size: 0.8rem;
+  color: var(--text-light);
+  margin-top: var(--space-xs);
+  font-family: 'Courier New', monospace;
+}
 
 /* ── Confirm dialog (matching dedup-photos .confirm-overlay) ─────────── */
 

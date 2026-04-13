@@ -6,7 +6,7 @@ export const state = {
     // Path to folder containing target photos (no GPS)
     targetFolder: null,
 
-    // Array of paths to GPS reference folders
+    // Array of { path, photoCount } objects for added reference folders
     referenceFolders: [],
 
     // Array of imported GPX/KML/CSV file paths

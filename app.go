@@ -30,6 +30,10 @@ type App struct {
 	// Used by GetGPSTracks() so the frontend can list what has been imported.
 	gpsTrackFiles []GPSTrackFile
 
+	// referenceFolderList tracks folders added via AddReferenceFolder.
+	// Each entry holds the path and number of geolocated photos found.
+	referenceFolderList []ReferenceFolderInfo
+
 	// matchResults stores the output of the GPS matching engine.
 	matchResults []MatchResult
 
@@ -82,25 +86,6 @@ func (a *App) ScanTargetFolder(path string) ([]TargetPhoto, error) {
 		Message:  fmt.Sprintf("Found %d photos without GPS", len(photos)),
 	}
 	return photos, nil
-}
-
-// AddReferenceFolder scans folderPath for geolocated reference photos.
-// Appends to the existing list — multiple reference folders are supported.
-// TODO: Implement in Phase 2
-func (a *App) AddReferenceFolder(path string) map[string]interface{} {
-	return map[string]interface{}{"status": "not_implemented", "path": path}
-}
-
-// RunMatching executes the GPS matching engine against targets and references.
-// TODO: Implement in Phase 4
-func (a *App) RunMatching(opts MatchOptions) map[string]interface{} {
-	return map[string]interface{}{"status": "not_implemented"}
-}
-
-// GetMatchResults returns current matching results for frontend polling.
-// TODO: Implement in Phase 4
-func (a *App) GetMatchResults() map[string]interface{} {
-	return map[string]interface{}{"status": "not_implemented", "results": []MatchResult{}}
 }
 
 // GetThumbnail returns a base64-encoded JPEG thumbnail for the image at path.
