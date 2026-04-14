@@ -96,6 +96,8 @@ func ScanForTargetPhotos(folderPath string) ([]TargetPhoto, error) {
 		// Photos without timestamps will still appear but can't be matched.
 		if exifData.HasDateTime {
 			photo.DateTimeOriginal = exifData.DateTimeOriginal
+		} else {
+			slog.Warn("exif_no_datetime", "path", path, "extension", ext)
 		}
 
 		results = append(results, photo)
@@ -120,12 +122,10 @@ func ScanForTargetPhotos(folderPath string) ([]TargetPhoto, error) {
 // reference photo format. Includes RAW formats that may carry GPS.
 func isReferenceExtension(ext string) bool {
 	switch ext {
-	case ".jpg", ".jpeg", ".png", ".dng", ".arw":
+	case ".jpg", ".jpeg", ".png", ".dng", ".arw", ".heic", ".heif":
 		return true
 	}
 	return false
-	// NOTE: .heic / .heif omitted — goheif not yet in go.mod.
-	// HEIC files will be silently skipped during reference scanning.
 }
 
 // ScanForReferencePhotos walks folderPath recursively and returns every photo
@@ -177,8 +177,14 @@ func ScanForReferencePhotos(folderPath string, dateFilter DateRange) ([]Referenc
 			}
 		}
 
-		// Read EXIF using the lightweight scan reader (no maker notes, LimitReader).
-		exifData, err := ReadEXIFForScan(path)
+		// Read EXIF. HEIC files need the ISOBMFF parser; other formats use the
+		// lightweight scan reader (no maker notes, LimitReader).
+		var exifData *EXIFData
+		if ext == ".heic" || ext == ".heif" {
+			exifData, err = ReadHEICExif(path)
+		} else {
+			exifData, err = ReadEXIFForScan(path)
+		}
 		if err != nil {
 			slog.Warn("exif_read_failed", "path", path, "error", err.Error(), "extension", ext)
 			return nil
@@ -189,7 +195,9 @@ func ScanForReferencePhotos(folderPath string, dateFilter DateRange) ([]Referenc
 			return nil
 		}
 		// Also skip photos without a timestamp — we need it for matching.
+		// Warn so users can see which reference files are being skipped.
 		if !exifData.HasDateTime {
+			slog.Warn("exif_no_datetime", "path", path, "extension", ext)
 			return nil
 		}
 
@@ -201,7 +209,7 @@ func ScanForReferencePhotos(folderPath string, dateFilter DateRange) ([]Referenc
 			GPS:              GPSCoord{Latitude: exifData.Latitude, Longitude: exifData.Longitude},
 			CameraModel:      exifData.CameraModel,
 			SourceFolder:     folderPath,
-			IsHEIC:           false,
+			IsHEIC:           ext == ".heic" || ext == ".heif",
 		})
 		return nil
 	}

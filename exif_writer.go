@@ -20,6 +20,15 @@ import (
 // Backs up the original to <file>.bak, writes GPS, then verifies by re-reading.
 // On any failure the backup is restored before the error is returned.
 func WriteGPS(targetPath string, lat, lon float64) error {
+	// Check if file is writable before creating backup.
+	// Creating a .bak of a read-only file is wasted work if we can't write back.
+	fi, err := os.Stat(targetPath)
+	if err != nil {
+		return fmt.Errorf("stat %q: %w", targetPath, err)
+	}
+	if fi.Mode().Perm()&0200 == 0 {
+		return fmt.Errorf("file %q is read-only — cannot write GPS data", targetPath)
+	}
 	backupPath := targetPath + ".bak"
 	if err := copyFile(targetPath, backupPath); err != nil {
 		return fmt.Errorf("backup failed: %w", err)
