@@ -132,9 +132,15 @@ func isReferenceExtension(ext string) bool {
 // that has GPS EXIF data. These become the coordinate sources for matching.
 // Only photos with both GPS and a valid DateTimeOriginal are included.
 //
+// dateFilter optionally restricts which files are considered based on filesystem
+// modification time. When non-zero, files whose mod time falls outside the range
+// are skipped before EXIF is read — this is the key performance optimisation for
+// large reference libraries that span years of photos.
+//
 // Uses filepath.WalkDir (Go 1.16+) — see ScanForTargetPhotos for rationale.
-func ScanForReferencePhotos(folderPath string) ([]ReferencePhoto, error) {
+func ScanForReferencePhotos(folderPath string, dateFilter DateRange) ([]ReferencePhoto, error) {
 	var results []ReferencePhoto
+	var skippedByDate int
 
 	walkStart := time.Now()
 
@@ -152,6 +158,23 @@ func ScanForReferencePhotos(folderPath string) ([]ReferencePhoto, error) {
 		ext := strings.ToLower(filepath.Ext(path))
 		if !isReferenceExtension(ext) {
 			return nil
+		}
+
+		// Quick filesystem date check — skip files clearly outside the target date range.
+		// Uses the file's mod time as a rough proxy for when the photo was taken.
+		// This avoids the expensive EXIF read for files that can't possibly match.
+		// Note: file copies change mod time, so we use a generous margin (see
+		// computeTargetDateRange). False negatives here are bad; false positives are OK
+		// because EXIF-level matching in matcher.go will still discard them.
+		if !dateFilter.IsZero() {
+			info, err := d.Info()
+			if err == nil {
+				modTime := info.ModTime()
+				if modTime.Before(dateFilter.Start) || modTime.After(dateFilter.End) {
+					skippedByDate++
+					return nil
+				}
+			}
 		}
 
 		// Read EXIF using the lightweight scan reader (no maker notes, LimitReader).
@@ -190,6 +213,7 @@ func ScanForReferencePhotos(folderPath string) ([]ReferencePhoto, error) {
 	slog.Info("scan_reference_complete",
 		"folder", folderPath,
 		"references_found", len(results),
+		"skipped_by_date", skippedByDate,
 		"walk_duration_ms", time.Since(walkStart).Milliseconds(),
 	)
 
