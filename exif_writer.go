@@ -34,23 +34,35 @@ func WriteGPS(targetPath string, lat, lon float64) error {
 		return fmt.Errorf("backup failed: %w", err)
 	}
 	ext := strings.ToLower(filepath.Ext(targetPath))
-	if ext == ".dng" {
-		return fmt.Errorf("GPS write for DNG files not yet supported")
-	}
-	if ext != ".jpg" && ext != ".jpeg" {
+	switch ext {
+	case ".dng":
+		return writeAndVerify(targetPath, backupPath, lat, lon, "DNG", writeGPSToDNG)
+	case ".jpg", ".jpeg":
+		return writeAndVerify(targetPath, backupPath, lat, lon, "JPEG", writeGPSToJPEG)
+	default:
 		return fmt.Errorf("unsupported format for GPS write: %s", ext)
 	}
-	if err := writeGPSToJPEG(targetPath, lat, lon); err != nil {
+}
+
+// writeAndVerify runs a format-specific GPS writer, then re-reads EXIF to confirm
+// the coordinates landed within 0.001° (~110 m) — a tolerance that survives DMS
+// rounding but catches wrong writes. On any failure the backup is restored.
+func writeAndVerify(
+	targetPath, backupPath string,
+	lat, lon float64,
+	label string,
+	writer func(string, float64, float64) error,
+) error {
+	if err := writer(targetPath, lat, lon); err != nil {
 		_ = copyFile(backupPath, targetPath)
-		return fmt.Errorf("GPS write failed: %w", err)
+		return fmt.Errorf("%s GPS write failed: %w", label, err)
 	}
-	// Verify: tolerance 0.001° (~110 m) survives DMS rounding but catches wrong writes.
 	result, err := ReadEXIF(targetPath)
 	if err != nil || !result.HasGPS ||
 		math.Abs(result.Latitude-lat) > 0.001 ||
 		math.Abs(result.Longitude-lon) > 0.001 {
 		_ = copyFile(backupPath, targetPath)
-		return fmt.Errorf("GPS verification failed for %s", filepath.Base(targetPath))
+		return fmt.Errorf("%s GPS verification failed for %s", label, filepath.Base(targetPath))
 	}
 	return nil
 }

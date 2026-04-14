@@ -78,7 +78,9 @@ geo-photo-tagger/
 ├── app_match.go         RunMatching / RunMatchingSingle bound methods
 ├── scanner.go           Filesystem walk: scan target folder + reference folders
 ├── exif_reader.go       EXIF extraction: GPS coords, timestamps, camera model
-├── exif_writer.go       GPS coordinate injection into target files
+├── exif_writer.go       GPS coordinate injection into target files (JPEG + DNG dispatch)
+├── dng_gps_writer.go    DNG GPS write — binary TIFF patch (append IFD at EOF)
+├── dng_gps_blob.go      Pure-function builder for the 114-byte GPS IFD blob
 ├── matcher.go           Time-based GPS matching engine + scoring
 ├── thumbnail.go         Thumbnail generation for JPG, PNG, DNG, ARW (not HEIC)
 ├── gpx_parser.go        GPX/KML/CSV track file parsing
@@ -86,7 +88,7 @@ geo-photo-tagger/
 ├── logger.go            slog-based structured logging setup
 ├── scanner_parallel.go  Parallel scan with worker pool
 ├── app_write.go         GPS write/undo/batch Wails-bound methods
-├── exif_writer_helpers.go   decimal-to-DMS conversion for GPS write
+├── exif_writer_helpers.go   copyFile helper for backup/restore
 ├── wails.json           Wails config (name, version, author)
 ├── go.mod / go.sum
 ├── CLAUDE.md            This file — development guidelines
