@@ -2,16 +2,21 @@ package main
 
 // exif_reader.go — EXIF metadata extraction
 // Reads GPS coordinates, timestamps, and camera model from photo files.
-// Supports JPEG, PNG, DNG, ARW (any format with standard EXIF/TIFF data).
-// HEIC support (ReadHEICExif) will be added in Phase 2.
+// Supports JPEG, PNG, DNG, ARW (any format with standard EXIF/TIFF data)
+// plus HEIC via the jdeng/goheif/heif ISOBMFF parser (ReadHEICExif).
 
 import (
+	"bytes"
+	"context"
 	"fmt"
 	"io"
 	"log/slog"
 	"os"
+	"path/filepath"
+	"strings"
 	"time"
 
+	heif "github.com/jdeng/goheif/heif"
 	"github.com/rwcarlsen/goexif/exif"
 	"github.com/rwcarlsen/goexif/mknote"
 )
@@ -77,6 +82,59 @@ func ReadEXIF(path string) (*EXIFData, error) {
 	return result, nil
 }
 
+// ReadHEICExif extracts GPS and timestamp from HEIC files using the
+// jdeng/goheif/heif ISOBMFF parser. HEIC is the default format for
+// iPhone photos and the primary source of GPS reference data.
+//
+// This reads the EXIF data embedded in the HEIC container without
+// attempting to decode the HEVC image pixels (no CGo required).
+func ReadHEICExif(path string) (*EXIFData, error) {
+	f, err := os.Open(path)
+	if err != nil {
+		return nil, fmt.Errorf("opening HEIC %q: %w", path, err)
+	}
+	defer f.Close()
+
+	// Parse the ISOBMFF container to find the EXIF box.
+	// heif.Open takes an io.ReaderAt — os.File implements it.
+	hf := heif.Open(f)
+	exifBytes, err := hf.EXIF()
+	if err != nil {
+		slog.Debug("heic_no_exif", "path", path, "error", err.Error())
+		return &EXIFData{}, nil
+	}
+
+	// The EXIF bytes from HEIC are a raw TIFF structure.
+	// Feed them to goexif for parsing (same as JPEG APP1 content).
+	x, err := exif.Decode(bytes.NewReader(exifBytes))
+	if err != nil {
+		slog.Debug("heic_exif_decode_failed", "path", path, "error", err.Error())
+		return &EXIFData{}, nil
+	}
+
+	result := &EXIFData{}
+
+	lat, lon, err := x.LatLong()
+	if err == nil {
+		result.HasGPS = true
+		result.Latitude = lat
+		result.Longitude = lon
+	}
+
+	t, err := x.DateTime()
+	if err == nil {
+		result.DateTimeOriginal = t
+		result.HasDateTime = true
+	}
+
+	modelTag, err := x.Get(exif.Model)
+	if err == nil {
+		result.CameraModel, _ = modelTag.StringVal()
+	}
+
+	return result, nil
+}
+
 // ReadEXIFForScan is a lightweight EXIF reader optimised for the scan phase.
 //
 // Differences from ReadEXIF:
@@ -99,9 +157,18 @@ func ReadEXIFForScan(path string) (*EXIFData, error) {
 	}
 	defer f.Close()
 
-	// Safety limit: EXIF cannot exceed 64 KB in JPEG (use 128 KB for DNG margin).
-	// exif.Decode accepts io.Reader, so LimitReader wraps directly — no type assertion needed.
-	limited := io.LimitReader(f, 128*1024)
+	// Choose read limit based on file format.
+	// JPEG: APP1 is capped at 64 KB by spec → 128 KB limit is safe.
+	// DNG/TIFF: embed JPEG previews (100-200 KB) that push EXIF IFDs further.
+	//   Real-world Pentax K-1 DNG: ExifIFD at 158 KB, GPSInfo at 158 KB.
+	//   512 KB covers even large embedded previews while staying far below
+	//   the full multi-MB raw data.
+	ext := strings.ToLower(filepath.Ext(path))
+	readLimit := int64(128 * 1024) // 128 KB default (JPEG)
+	if ext == ".dng" || ext == ".arw" || ext == ".tiff" || ext == ".tif" {
+		readLimit = 512 * 1024 // 512 KB for TIFF-based formats
+	}
+	limited := io.LimitReader(f, readLimit)
 
 	// Decode EXIF without maker note parsers — faster for GPS/DateTime check.
 	// The global init() registered parsers apply to the full exif.Decode path,
@@ -111,8 +178,14 @@ func ReadEXIFForScan(path string) (*EXIFData, error) {
 	// parser registry but skip any parser not already registered.
 	x, err := exif.Decode(limited)
 	if err != nil {
-		// No EXIF is normal (e.g. some PNGs) — log at Debug and return empty
-		slog.Debug("exif_no_data", "path", path, "error", err.Error())
+		// JPEG, DNG, ARW files should always have EXIF — log at Warn.
+		// PNG may legitimately lack EXIF — log at Debug.
+		level := slog.LevelDebug
+		if ext == ".jpg" || ext == ".jpeg" || ext == ".dng" || ext == ".arw" {
+			level = slog.LevelWarn
+		}
+		slog.Log(context.Background(), level, "exif_decode_failed",
+			"path", path, "error", err.Error(), "extension", ext)
 		return &EXIFData{}, nil
 	}
 

@@ -5,6 +5,7 @@ go 1.25.0
 require (
 	github.com/dsoprea/go-exif/v3 v3.0.1
 	github.com/dsoprea/go-jpeg-image-structure/v2 v2.0.0-20221012074422-4f3f7e934102
+	github.com/jdeng/goheif v0.0.0-20260407171156-9bf5264f67af
 	github.com/rwcarlsen/goexif v0.0.0-20190401172101-9e8deecbddbd
 	github.com/wailsapp/wails/v2 v2.12.0
 	golang.org/x/image v0.39.0
