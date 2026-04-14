@@ -41,19 +41,20 @@ async function handleAddReferenceClick() {
 }
 
 // renderReferenceList rebuilds the #reference-list element from state.referenceFolders.
+// Also toggles the visibility of the whole chip row based on whether any
+// reference folders are present.
 export function renderReferenceList() {
     const container = document.getElementById('reference-list');
     if (!container) return;
-
-    if (state.referenceFolders.length === 0) {
-        container.innerHTML = '<span class="muted small">No reference folders added</span>';
-        return;
-    }
 
     container.innerHTML = '';
     state.referenceFolders.forEach(info => {
         container.appendChild(buildReferenceChip(info));
     });
+
+    // Hide the row entirely when empty so the topbar stays compact.
+    const row = document.getElementById('reference-list-row');
+    if (row) row.style.display = state.referenceFolders.length > 0 ? '' : 'none';
 }
 
 // buildReferenceChip creates one chip element for an imported reference folder.

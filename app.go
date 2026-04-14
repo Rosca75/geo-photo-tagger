@@ -6,8 +6,12 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log/slog"
+	"net/http"
+	"strings"
+	"time"
 
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
@@ -115,4 +119,77 @@ func (a *App) GetThumbnail(path string) string {
 // The frontend polls this during long-running operations to update the UI.
 func (a *App) GetScanStatus() ScanStatus {
 	return a.scanStatus
+}
+
+// ReverseGeocode returns a human-readable location string for the given
+// coordinates by calling the free OpenStreetMap Nominatim API. A 5-second
+// timeout is enforced so the UI never hangs waiting on the network.
+//
+// Returns an empty string on any failure rather than an error — reverse
+// geocoding is a nice-to-have, and the UI gracefully degrades to raw
+// coordinates when no location name is available.
+func (a *App) ReverseGeocode(lat, lon float64) string {
+	url := fmt.Sprintf("https://nominatim.openstreetmap.org/reverse?lat=%f&lon=%f&format=json&zoom=10", lat, lon)
+
+	// Short timeout — the user is waiting; better to show raw coords than to stall.
+	client := &http.Client{Timeout: 5 * time.Second}
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return ""
+	}
+	// Nominatim's usage policy requires a descriptive User-Agent.
+	req.Header.Set("User-Agent", "GeoPhotoTagger/1.0")
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return ""
+	}
+	defer resp.Body.Close()
+
+	// Minimal struct — only the address fields we want to display.
+	var result struct {
+		DisplayName string `json:"display_name"`
+		Address     struct {
+			City    string `json:"city"`
+			Town    string `json:"town"`
+			Village string `json:"village"`
+			County  string `json:"county"`
+			State   string `json:"state"`
+			Country string `json:"country"`
+		} `json:"address"`
+	}
+
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return ""
+	}
+
+	// Pick the most specific "place name" available — Nominatim returns
+	// different fields depending on feature type.
+	city := result.Address.City
+	if city == "" {
+		city = result.Address.Town
+	}
+	if city == "" {
+		city = result.Address.Village
+	}
+	if city == "" {
+		city = result.Address.County
+	}
+
+	// Build a concise "City, State, Country" string, skipping empty parts.
+	parts := make([]string, 0, 3)
+	if city != "" {
+		parts = append(parts, city)
+	}
+	if result.Address.State != "" {
+		parts = append(parts, result.Address.State)
+	}
+	if result.Address.Country != "" {
+		parts = append(parts, result.Address.Country)
+	}
+
+	if len(parts) == 0 {
+		return result.DisplayName
+	}
+	return strings.Join(parts, ", ")
 }

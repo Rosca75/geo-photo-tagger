@@ -18,57 +18,78 @@
 <body>
     <div class="app-layout">
 
-        <!-- ZONE A — Top Bar (full width) -->
+        <!-- ZONE A — Top Bar (redesigned: 3 logical groups) -->
         <header class="topbar">
-            <!-- Row 1: Target folder + action buttons -->
-            <div class="topbar-row">
-                <span class="app-title">GeoPhotoTagger</span>
-                <input id="target-folder-path" class="folder-input"
-                       type="text" placeholder="Target folder (photos without GPS)..." readonly>
-                <button id="btn-browse" class="btn btn-primary">Browse</button>
-                <button id="btn-add-reference" class="btn btn-secondary">+ Reference</button>
-                <button id="btn-import-track" class="btn btn-secondary">Import Track</button>
-            </div>
-            <!-- Row 2: Match controls -->
-            <div class="topbar-row">
-                <button id="btn-match-all" class="btn btn-accent">Match All</button>
-                <span class="label-small">Max delta:</span>
-                <button class="btn btn-sm btn-secondary threshold-btn" data-minutes="10">10 min</button>
-                <button class="btn btn-sm btn-secondary threshold-btn active" data-minutes="30">30 min</button>
-                <button class="btn btn-sm btn-secondary threshold-btn" data-minutes="60">60 min</button>
-                <span id="scan-indicator" class="scan-indicator hidden">Scanning&#8230;</span>
-                <button id="btn-apply-all" class="btn btn-sm btn-primary" style="margin-left:auto">
-                    Apply All Accepted
-                </button>
-            </div>
-            <!-- Row 3: Filter + Sort controls -->
-            <div class="topbar-row">
-                <span class="label-small">Filter:</span>
-                <button class="btn btn-sm btn-secondary filter-btn active" data-filter="all">All</button>
-                <button class="btn btn-sm btn-secondary filter-btn" data-filter="matched">Matched</button>
-                <button class="btn btn-sm btn-secondary filter-btn" data-filter="unmatched">Unmatched</button>
-                <span class="label-small" style="margin-left:auto">Sort:</span>
-                <select id="sort-select" class="sort-select">
-                    <option value="filename">Filename</option>
-                    <option value="date">Date</option>
-                    <option value="score">Score &#8595;</option>
-                    <option value="status">Status</option>
-                </select>
-            </div>
-            <!-- Row 4: Reference folders list -->
-            <div id="reference-list-row" class="topbar-row track-list-row">
-                <span class="label-small">References:</span>
-                <div id="reference-list" class="chip-list">
-                    <span class="muted small">No reference folders added</span>
+
+            <!-- GROUP 1: Data Sources — folder selection + GPS reference management -->
+            <div class="topbar-group" id="group-sources">
+                <div class="group-label">Data Sources</div>
+                <div class="topbar-row">
+                    <span class="app-title">GeoPhotoTagger</span>
+                    <input id="target-folder-path" class="folder-input"
+                           type="text" placeholder="No source folder selected..." readonly>
+                    <button id="btn-browse" class="btn btn-primary"
+                            title="Select folder containing photos without GPS data">Source</button>
+                    <button id="btn-reset-source" class="btn btn-sm btn-secondary btn-icon"
+                            title="Clear source folder and reset photo list"
+                            style="display:none">&#x2715;</button>
+                    <div class="btn-separator"></div>
+                    <button id="btn-add-reference" class="btn btn-secondary"
+                            title="Add a folder of geolocated reference photos">GPS Ref</button>
+                    <button id="btn-import-track" class="btn btn-secondary"
+                            title="Import a GPX, KML, or CSV GPS track file">Import Track</button>
+                </div>
+                <!-- Reference folders chip list -->
+                <div id="reference-list-row" class="topbar-row chip-row" style="display:none">
+                    <span class="label-small">References:</span>
+                    <div id="reference-list" class="chip-list"></div>
+                </div>
+                <!-- GPS track files chip list -->
+                <div id="track-list-row" class="topbar-row chip-row" style="display:none">
+                    <span class="label-small">GPS Tracks:</span>
+                    <div id="track-list" class="chip-list"></div>
                 </div>
             </div>
-            <!-- Row 5: GPS track files list -->
-            <div id="track-list-row" class="topbar-row track-list-row">
-                <span class="label-small">GPS Tracks:</span>
-                <div id="track-list" class="chip-list">
-                    <span class="muted small">No GPS tracks imported</span>
+
+            <!-- GROUP 2: Matching — run match + threshold + stats summary -->
+            <div class="topbar-group" id="group-matching">
+                <div class="group-label">Matching</div>
+                <div class="topbar-row">
+                    <button id="btn-match-all" class="btn btn-accent"
+                            title="Search for GPS matches for all photos without GPS data">Search for GPS match</button>
+                    <div class="btn-separator"></div>
+                    <span class="label-small">Max delta:</span>
+                    <button class="btn btn-sm btn-secondary threshold-btn" data-minutes="10"
+                            title="Only match photos taken within 10 minutes of a GPS source">10 min</button>
+                    <button class="btn btn-sm btn-secondary threshold-btn active" data-minutes="30"
+                            title="Only match photos taken within 30 minutes of a GPS source">30 min</button>
+                    <button class="btn btn-sm btn-secondary threshold-btn" data-minutes="60"
+                            title="Only match photos taken within 60 minutes of a GPS source">60 min</button>
+                    <span id="scan-indicator" class="scan-indicator hidden">Scanning&#8230;</span>
+                </div>
+                <div class="topbar-row">
+                    <span id="match-stats" class="match-stats muted">No scan results yet</span>
                 </div>
             </div>
+
+            <!-- GROUP 3: View Controls — filter + batch action -->
+            <div class="topbar-group" id="group-view">
+                <div class="group-label">View</div>
+                <div class="topbar-row">
+                    <span class="label-small">Filter:</span>
+                    <button class="btn btn-sm btn-secondary filter-btn active" data-filter="all"
+                            title="Show all scanned photos">All</button>
+                    <button class="btn btn-sm btn-secondary filter-btn" data-filter="matched"
+                            title="Show only photos with GPS matches">Matched</button>
+                    <button class="btn btn-sm btn-secondary filter-btn" data-filter="unmatched"
+                            title="Show only photos without GPS matches">Unmatched</button>
+                    <button id="btn-apply-all" class="btn btn-sm btn-primary" style="margin-left:auto"
+                            title="Write GPS coordinates to all accepted matches">
+                        Apply All Accepted
+                    </button>
+                </div>
+            </div>
+
         </header>
 
         <!-- ZONE B — Target Photos (left panel ~45%) -->

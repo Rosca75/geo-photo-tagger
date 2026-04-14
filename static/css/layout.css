@@ -51,6 +51,44 @@
   margin-right: var(--space-xs);
 }
 
+/* ── Topbar group containers ─────────────────────────────────────── */
+
+.topbar-group {
+  padding: var(--space-xs) 0;
+  border-bottom: 1px solid var(--border);
+}
+.topbar-group:last-child {
+  border-bottom: none;
+}
+
+.group-label {
+  font-size: 0.65rem;
+  font-weight: var(--font-weight-semi);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-light);
+  margin-bottom: var(--space-xs);
+  opacity: 0.7;
+}
+
+/* Vertical separator between button groups in the same row */
+.btn-separator {
+  width: 1px;
+  height: 20px;
+  background: var(--border);
+  margin: 0 var(--space-xs);
+}
+
+/* Chip row: hidden by default, revealed by JS when items are present */
+.chip-row {
+  margin-top: var(--space-xs);
+}
+
+/* Match stats summary line */
+.match-stats {
+  font-size: 0.8rem;
+}
+
 /* ── ZONE B — Target photos (left panel) ─────────────────────────── */
 
 .target-panel {

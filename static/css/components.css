@@ -49,6 +49,14 @@
 /* Small size modifier */
 .btn-sm { padding: var(--space-xs) var(--space-sm); font-size: 0.75rem; }
 
+/* Icon-only button (e.g. reset ✕) — compact square */
+.btn-icon {
+  padding: var(--space-xs);
+  min-width: 28px;
+  justify-content: center;
+  font-size: 0.75rem;
+}
+
 /* Active state for threshold preset buttons */
 .threshold-btn.active {
   background: var(--primary);
@@ -165,12 +173,6 @@
   font-weight: var(--font-weight-semi);
   color: var(--text-light);
   white-space: nowrap;
-}
-
-/* Hide the GPS tracks row when empty, keep a minimal height when used */
-.track-list-row {
-  min-height: 0;
-  padding-top: 0;
 }
 
 /* Individual chip: coloured pill showing one imported track / folder */
@@ -290,21 +292,6 @@
   color: #fff;
 }
 
-/* ── Sort dropdown ───────────────────────────────────────────────────── */
-.sort-select {
-  padding: var(--space-xs) var(--space-sm);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  background: var(--bg);
-  color: var(--text);
-  font-family: var(--font);
-  font-size: 0.75rem;
-  outline: none;
-  cursor: pointer;
-  transition: border var(--transition);
-}
-.sort-select:focus { border-color: var(--primary-light); }
-
 /* ── Zone C photo preview card ───────────────────────────────────────── */
 .preview-card {
   text-align: center;
@@ -343,12 +330,66 @@
   margin-top: var(--space-xs);
 }
 
-/* ── Accepted candidate highlight ────────────────────────────────────── */
-/* Applied when the user clicks Accept on a candidate row */
-.detail-candidate.accepted {
+/* ── Candidate radio-select styling ──────────────────────────────── */
+
+.detail-candidate {
+  cursor: pointer;
+  transition: background var(--transition), border-left var(--transition);
+  padding-left: var(--space-sm);
+}
+.detail-candidate:hover {
+  background: rgba(74, 144, 226, 0.05);
+}
+
+/* Selected candidate — green left border + light green background */
+.detail-candidate.selected {
   background: rgba(80, 200, 120, 0.08);
   border-left: 3px solid var(--success);
-  padding-left: calc(var(--space-xs) - 3px); /* compensate for added border width */
+  padding-left: calc(var(--space-sm) - 3px);
+}
+
+/* Radio indicator column */
+.candidate-radio {
+  font-size: 1rem;
+  color: var(--text-light);
+  flex-shrink: 0;
+  width: 20px;
+  text-align: center;
+}
+.detail-candidate.selected .candidate-radio {
+  color: var(--success);
+}
+
+/* GPS preview card shown below the candidate list */
+.candidate-preview {
+  margin-top: var(--space-sm);
+  padding: var(--space-sm);
+  background: var(--bg-subtle);
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+}
+
+.gps-preview-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+
+.gps-coords {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+.gps-value {
+  font-family: 'Courier New', monospace;
+  font-size: 0.85rem;
+  color: var(--primary);
+  font-weight: var(--font-weight-semi);
+}
+
+.gps-location {
+  font-size: 0.8rem;
 }
 
 /* ── Confirm dialog (matching dedup-photos .confirm-overlay) ─────────── */
