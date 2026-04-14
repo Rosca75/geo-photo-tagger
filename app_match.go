@@ -74,3 +74,63 @@ func (a *App) GetMatchResults() []MatchResult {
 	}
 	return a.matchResults
 }
+
+// RunMatchingSingle runs the GPS matching engine for a single target photo,
+// identified by its absolute path. Returns the MatchResult for that photo
+// only. If the photo is not found in the currently loaded target list, or
+// no GPS sources are loaded, returns an error.
+//
+// This lets the frontend match one photo at a time (e.g. when the user
+// clicks a per-photo "Search for GPS match" button in Zone C) without
+// re-running the entire batch matching operation.
+func (a *App) RunMatchingSingle(targetPath string, opts MatchOptions) (MatchResult, error) {
+	// Locate the target photo in the already-scanned list.
+	var target *TargetPhoto
+	for i := range a.targetPhotos {
+		if a.targetPhotos[i].Path == targetPath {
+			target = &a.targetPhotos[i]
+			break
+		}
+	}
+	if target == nil {
+		return MatchResult{}, fmt.Errorf("target photo not found: %s", targetPath)
+	}
+
+	// Require at least one GPS source — the engine has nothing to match against otherwise.
+	if len(a.referencePhotos) == 0 && len(a.gpsTrackPoints) == 0 {
+		return MatchResult{}, fmt.Errorf("no GPS sources loaded — add a reference folder or import a GPS track first")
+	}
+
+	// Call the matching engine with a single-element slice so we reuse the
+	// existing MatchPhotos implementation without duplication.
+	results := MatchPhotos([]TargetPhoto{*target}, a.referencePhotos, a.gpsTrackPoints, opts)
+	if len(results) == 0 {
+		return MatchResult{TargetPath: targetPath}, nil
+	}
+	result := results[0]
+
+	// Update this photo's status in the stored target list so subsequent
+	// scans / status calls reflect the new match decision.
+	if result.BestCandidate != nil {
+		target.BestMatch = result.BestCandidate
+		target.Status = "matched"
+	} else {
+		target.Status = "unmatched"
+	}
+
+	// Merge the single result into the cached matchResults slice — either
+	// replacing an existing entry for the same target, or appending if new.
+	found := false
+	for i := range a.matchResults {
+		if a.matchResults[i].TargetPath == targetPath {
+			a.matchResults[i] = result
+			found = true
+			break
+		}
+	}
+	if !found {
+		a.matchResults = append(a.matchResults, result)
+	}
+
+	return result, nil
+}

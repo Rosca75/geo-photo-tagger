@@ -58,6 +58,18 @@ export async function runMatching(opts) {
     return window.go.main.App.RunMatching(opts);
 }
 
+// Run GPS matching for a single target photo identified by its absolute path.
+// Returns a MatchResult for that photo only.
+export async function runMatchingSingle(targetPath, opts) {
+    return window.go.main.App.RunMatchingSingle(targetPath, opts);
+}
+
+// Reverse-geocode GPS coordinates to a human-readable location string.
+// Returns a string like "Paris, Île-de-France, France" or "" on error.
+export async function reverseGeocode(lat, lon) {
+    return window.go.main.App.ReverseGeocode(lat, lon);
+}
+
 // Get the current matching results (poll during matching).
 export async function getMatchResults() {
     return window.go.main.App.GetMatchResults();

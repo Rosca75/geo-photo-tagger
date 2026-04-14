@@ -1,9 +1,21 @@
 // table.js — Target photos table rendering for Zone B
 // Builds and updates the data table showing scanned target photos.
-// Each row: row number, filename, date/time, camera model, status badge.
+// Column headers are clickable and toggle sort direction.
+// Each row: row number, filename, date/time, camera model, score, status.
 
 import { state } from './state.js';
 import { escapeHtml } from './helpers.js';
+
+// Module-level sort state for column header toggling.
+// Read by filters.js via getSortState() so that applyFilters() can sort
+// in a single place. Changed by handleHeaderSort().
+let sortColumn = 'filename';
+let sortDirection = 'asc'; // 'asc' or 'desc'
+
+// getSortState returns the current sort column and direction for external use.
+export function getSortState() {
+    return { column: sortColumn, direction: sortDirection };
+}
 
 // renderTable replaces the content of #target-table-container with a fresh
 // table built from the given photos array.
@@ -33,19 +45,44 @@ function buildTable(photos) {
     return table;
 }
 
-// buildHeader returns a <thead> with the column header row.
+// buildHeader creates the <thead> with clickable sortable column headers.
+// Each sortable header shows an up/down arrow when active.
 function buildHeader() {
     const thead = document.createElement('thead');
-    thead.innerHTML = `
-        <tr>
-            <th class="col-num">#</th>
-            <th class="col-filename">Filename</th>
-            <th class="col-date">Date / Time</th>
-            <th class="col-camera">Camera</th>
-            <th class="col-score">Score</th>
-            <th class="col-status">Status</th>
-        </tr>`;
+    const tr = document.createElement('tr');
+    const cols = [
+        ['num',      '#',           false, 'col-num'],
+        ['filename', 'Filename',    true,  'col-filename'],
+        ['date',     'Date / Time', true,  'col-date'],
+        ['camera',   'Camera',      true,  'col-camera'],
+        ['score',    'Score',       true,  'col-score'],
+        ['status',   'Status',      true,  'col-status'],
+    ];
+    cols.forEach(([key, label, sortable, cls]) => {
+        const th = document.createElement('th');
+        th.className = cls;
+        if (!sortable) { th.textContent = label; tr.appendChild(th); return; }
+        th.dataset.sort = key;
+        th.title = `Sort by ${label}`;
+        th.classList.add('sortable');
+        const arrow = key === sortColumn ? (sortDirection === 'asc' ? ' \u25B2' : ' \u25BC') : '';
+        th.innerHTML = `${label}<span class="sort-arrow">${arrow}</span>`;
+        if (key === sortColumn) th.classList.add(sortDirection === 'asc' ? 'sort-asc' : 'sort-desc');
+        th.addEventListener('click', () => handleHeaderSort(key));
+        tr.appendChild(th);
+    });
+    thead.appendChild(tr);
     return thead;
+}
+
+// handleHeaderSort toggles direction on same-column click, or resets to
+// ascending on a new column. Dispatches 'sort-changed' for filters.js.
+function handleHeaderSort(column) {
+    if (sortColumn === column) sortDirection = sortDirection === 'asc' ? 'desc' : 'asc';
+    else { sortColumn = column; sortDirection = 'asc'; }
+    document.dispatchEvent(new CustomEvent('sort-changed', {
+        detail: { column: sortColumn, direction: sortDirection }
+    }));
 }
 
 // buildRow creates one <tr> for a single target photo.
@@ -107,4 +144,3 @@ function selectPhoto(photo, tr) {
     // Notify other modules that a photo was selected
     document.dispatchEvent(new CustomEvent('photo-selected', { detail: { photo } }));
 }
-

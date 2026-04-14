@@ -74,7 +74,8 @@ instead of a thumbnail for HEIC reference images.
 ```
 geo-photo-tagger/
 ├── main.go              Wails app entry point (wails.Run)
-├── app.go               App struct — all public methods bound to JS frontend
+├── app.go               App struct + ReverseGeocode bound method
+├── app_match.go         RunMatching / RunMatchingSingle bound methods
 ├── scanner.go           Filesystem walk: scan target folder + reference folders
 ├── exif_reader.go       EXIF extraction: GPS coords, timestamps, camera model
 ├── exif_writer.go       GPS coordinate injection into target files
@@ -105,18 +106,19 @@ geo-photo-tagger/
     │   ├── table.css      Data table styles
     │   └── components.css Buttons, badges, toast, dialogs
     └── js/
-        ├── app.js         Entry point — imports modules, wires init()
-        ├── state.js       Shared state object (single source of truth)
-        ├── api.js         All window.go.main.App.* calls (isolation layer)
-        ├── components.js  showToast(), showConfirm(), placeholder icons
-        ├── scan.js        Folder scanning orchestration
-        ├── browse.js      Native folder picker wrapper
-        ├── matcher_ui.js  GPS match results display + scoring filters
-        ├── table.js       Results data table (target photos + matched GPS)
-        ├── helpers.js     escapeHtml, formatDate shared utilities
-        ├── preview.js     Thumbnail preview card (Zone C header)
-        ├── filters.js     Match result filtering and sorting
-        └── actions.js     GPS apply, batch apply, undo handlers
+        ├── app.js          Entry point — imports modules, wires init()
+        ├── state.js        Shared state object (single source of truth)
+        ├── api.js          All window.go.main.App.* calls (isolation layer)
+        ├── scan.js         Source-folder scanning, reset handler, match-stats updater
+        ├── reference.js    Reference-folder chip list + add/remove handlers
+        ├── track.js        GPS track import chip list + add/remove handlers
+        ├── matcher_ui.js   Match-all + single-match + candidate radio-selection
+        ├── detail_render.js Zone C HTML builders (kept small for the 150-line rule)
+        ├── table.js        Zone B data table with clickable sortable column headers
+        ├── helpers.js      escapeHtml, formatDate shared utilities
+        ├── preview.js      Thumbnail preview card (Zone C header)
+        ├── filters.js      Match result filtering (sort lives in table.js)
+        └── actions.js      GPS apply, batch apply, undo handlers
 ```
 
 ---
@@ -142,11 +144,13 @@ no `fetch()` calls. Instead:
 | `App.ScanTargetFolder(path)` | `(a *App) ScanTargetFolder(path string)` | Scan for photos without GPS |
 | `App.AddReferenceFolder(path)` | `(a *App) AddReferenceFolder(path string)` | Add GPS reference source |
 | `App.ImportGPSTrack(path)` | `(a *App) ImportGPSTrack(path string)` | Load GPX/KML/CSV file |
-| `App.RunMatching(opts)` | `(a *App) RunMatching(opts MatchOptions)` | Execute GPS matching |
+| `App.RunMatching(opts)` | `(a *App) RunMatching(opts MatchOptions)` | Execute GPS matching for all photos |
+| `App.RunMatchingSingle(path, opts)` | `(a *App) RunMatchingSingle(path string, opts MatchOptions)` | Match one photo only (Zone C button) |
 | `App.GetMatchResults()` | `(a *App) GetMatchResults()` | Poll matching progress |
 | `App.GetThumbnail(path)` | `(a *App) GetThumbnail(path string)` | Base64 JPEG thumbnail |
 | `App.ApplyGPS(targetPath, lat, lon)` | `(a *App) ApplyGPS(...)` | Write GPS to a single file |
 | `App.ApplyAllMatches()` | `(a *App) ApplyAllMatches()` | Batch-apply all accepted matches |
+| `App.ReverseGeocode(lat, lon)` | `(a *App) ReverseGeocode(lat, lon float64)` | OSM Nominatim location lookup |
 | `App.GetScanStatus()` | `(a *App) GetScanStatus()` | Progress during scan/match |
 
 ### Thumbnails
@@ -222,27 +226,36 @@ export const state = {
 
 ## 8. UI Layout — 3-Zone Interface
 
+The topbar is split into 3 clearly labelled groups that follow the workflow
+(Sources → Matching → View). Chip rows for references and GPS tracks are
+hidden until at least one item is added.
+
 ```
-┌──────────────────────────────────────────────────────────────────┐
-│  ZONE A — Top Bar (full width, fixed)                            │
-│  [Target Folder] [Browse] [+ Reference] [Import Track]          │
-│  [Match All]  Threshold: [10|30|60|Custom]    [Apply Selected]  │
-│  [━━━━━━━━━━━━━━━ progress bar (during scan/match) ━━━━━━━━━━] │
-├────────────────────────────────┬─────────────────────────────────┤
-│                                │                                 │
-│  ZONE B — Target Photos        │  ZONE C — Match Details          │
-│  (left panel, ~45% width)      │  (right panel, ~55% width)      │
-│                                │                                 │
-│  Table: filename, date/time,   │  Selected photo preview          │
-│  status (matched/unmatched),   │  Best match thumbnail + score    │
-│  score badge                   │  GPS coordinates                 │
-│                                │  Map preview (optional)          │
-│  Click row → show matches      │  Candidate list (ranked)         │
-│  in Zone C                     │  [Accept] [Reject] per candidate │
-│                                │                                 │
-├────────────────────────────────┴─────────────────────────────────┤
-│  STATUS BAR: 234 target photos │ 156 matched │ 78 unmatched     │
-└──────────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────────┐
+│  ZONE A — Top Bar (3 logical groups)                                │
+│                                                                     │
+│  ── DATA SOURCES ───────────────────────────────────────────────    │
+│  [path...] [Source] [✕]  |  [GPS Ref] [Import Track]                │
+│  References: [chip] [chip]    GPS Tracks: [chip] [chip]             │
+│                                                                     │
+│  ── MATCHING ───────────────────────────────────────────────────    │
+│  [Search for GPS match] | Max delta: [10|30|60]  Scanning...        │
+│  234 photos │ 156 matched │ 78 unmatched                            │
+│                                                                     │
+│  ── VIEW ───────────────────────────────────────────────────────    │
+│  Filter: [All|Matched|Unmatched]              [Apply All Accepted]  │
+├────────────────────────────────┬────────────────────────────────────┤
+│  ZONE B — Target Photos        │  ZONE C — Match Details            │
+│  (left panel, ~45% width)      │  (right panel, ~55% width)         │
+│                                │                                    │
+│  Clickable sortable headers:   │  Selected photo preview            │
+│  #, Filename, Date/Time,       │  Best match summary + score        │
+│  Camera, Score, Status         │  Candidate list (radio-select)     │
+│                                │  GPS preview + location info       │
+│  Click row → Zone C detail     │  [Apply GPS] / [Undo]              │
+├────────────────────────────────┴────────────────────────────────────┤
+│  STATUS BAR: contextual messages (scan/match progress, errors)      │
+└─────────────────────────────────────────────────────────────────────┘
 ```
 
 ---

@@ -45,20 +45,19 @@ async function handleImportTrackClick() {
 }
 
 // renderTrackList rebuilds the #track-list element from state.gpsTrackFiles.
-// Shows a placeholder when the list is empty.
+// Hides the whole chip row when no tracks have been imported so the topbar
+// stays compact until the user actually adds something.
 export function renderTrackList() {
     const container = document.getElementById('track-list');
     if (!container) return;
-
-    if (state.gpsTrackFiles.length === 0) {
-        container.innerHTML = '<span class="muted small">No GPS tracks imported</span>';
-        return;
-    }
 
     container.innerHTML = '';
     state.gpsTrackFiles.forEach(tf => {
         container.appendChild(buildTrackChip(tf));
     });
+
+    const row = document.getElementById('track-list-row');
+    if (row) row.style.display = state.gpsTrackFiles.length > 0 ? '' : 'none';
 }
 
 // buildTrackChip creates a single track chip element showing filename + point count.
