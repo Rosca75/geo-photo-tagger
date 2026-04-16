@@ -33,11 +33,19 @@
                     <button id="btn-reset-source" class="btn btn-sm btn-secondary btn-icon"
                             title="Clear source folder and reset photo list"
                             style="display:none">&#x2715;</button>
+                    <label class="subfolder-toggle" title="Include photos in subfolders when scanning">
+                        <input id="chk-source-recursive" type="checkbox" checked>
+                        <span>Include subfolders</span>
+                    </label>
                     <div class="btn-separator"></div>
                     <button id="btn-add-reference" class="btn btn-secondary"
                             title="Add a folder of geolocated reference photos">GPS Ref</button>
                     <button id="btn-import-track" class="btn btn-secondary"
                             title="Import a GPX, KML, or CSV GPS track file">Import Track</button>
+                    <label class="subfolder-toggle" title="Include photos in subfolders when adding a reference folder">
+                        <input id="chk-ref-recursive" type="checkbox" checked>
+                        <span>Include subfolders</span>
+                    </label>
                 </div>
                 <!-- Reference folders chip list -->
                 <div id="reference-list-row" class="topbar-row chip-row" style="display:none">
@@ -58,13 +66,11 @@
                     <button id="btn-match-all" class="btn btn-accent"
                             title="Search for GPS matches for all photos without GPS data">Search for GPS match</button>
                     <div class="btn-separator"></div>
-                    <span class="label-small">Max delta:</span>
-                    <button class="btn btn-sm btn-secondary threshold-btn" data-minutes="10"
-                            title="Only match photos taken within 10 minutes of a GPS source">10 min</button>
-                    <button class="btn btn-sm btn-secondary threshold-btn active" data-minutes="30"
-                            title="Only match photos taken within 30 minutes of a GPS source">30 min</button>
-                    <button class="btn btn-sm btn-secondary threshold-btn" data-minutes="60"
-                            title="Only match photos taken within 60 minutes of a GPS source">60 min</button>
+                    <label class="delta-slider-label" for="delta-slider">Max delta:</label>
+                    <input id="delta-slider" class="delta-slider" type="range"
+                           min="5" max="360" step="5" value="30"
+                           title="Maximum time difference between a photo and a GPS source for a match to be considered">
+                    <span id="delta-slider-value" class="delta-slider-value">30 min</span>
                     <span id="scan-indicator" class="scan-indicator hidden">Scanning&#8230;</span>
                 </div>
                 <div class="topbar-row">

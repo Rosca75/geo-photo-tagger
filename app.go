@@ -48,6 +48,11 @@ type App struct {
 
 	// scanStatus tracks the current scan or match operation progress.
 	scanStatus ScanStatus
+
+	// lastSourceRecursive remembers whether the most recent source scan
+	// descended into subfolders. Needed by RunSameSourceMatching (phase 7)
+	// so the in-folder reference sweep matches the user's original intent.
+	lastSourceRecursive bool
 }
 
 // NewApp creates a new App instance with zero/empty state.
@@ -76,7 +81,7 @@ func (a *App) OpenFolderDialog() (string, error) {
 // ScanTargetFolder walks folderPath for photos without GPS EXIF data.
 // Updates scanStatus during the operation so GetScanStatus can report progress.
 // Returns the full list of target photos directly to the frontend.
-func (a *App) ScanTargetFolder(path string) ([]TargetPhoto, error) {
+func (a *App) ScanTargetFolder(path string, recursive bool) ([]TargetPhoto, error) {
 	// Signal to any polling frontend that a scan is running
 	a.scanStatus = ScanStatus{
 		InProgress: true,
@@ -98,9 +103,11 @@ func (a *App) ScanTargetFolder(path string) ([]TargetPhoto, error) {
 
 	// Remember the target folder so ClearAllBackups knows where to look later.
 	a.targetFolder = path
+	// Persist the recursion choice for RunSameSourceMatching (phase 7).
+	a.lastSourceRecursive = recursive
 
 	// Use the parallel scanner — 0 means "default workers" (min(NumCPU, 8)).
-	photos, err := a.ScanForTargetPhotosParallel(path, 0)
+	photos, err := a.ScanForTargetPhotosParallel(path, 0, recursive)
 	if err != nil {
 		a.scanStatus = ScanStatus{Phase: "idle", Message: err.Error()}
 		return nil, err

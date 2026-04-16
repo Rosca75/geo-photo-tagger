@@ -17,14 +17,15 @@ export async function openFileDialog() {
 }
 
 // Scan the target folder for photos without GPS data.
-export async function scanTargetFolder(path) {
-    return window.go.main.App.ScanTargetFolder(path);
+// recursive: true to descend into subfolders (pre-phase-4 default behavior).
+export async function scanTargetFolder(path, recursive) {
+    return window.go.main.App.ScanTargetFolder(path, recursive);
 }
 
 // Add a reference folder containing geolocated photos.
 // Returns { path, photoCount } on success.
-export async function addReferenceFolder(path) {
-    return window.go.main.App.AddReferenceFolder(path);
+export async function addReferenceFolder(path, recursive) {
+    return window.go.main.App.AddReferenceFolder(path, recursive);
 }
 
 // Return the list of reference folders currently loaded.

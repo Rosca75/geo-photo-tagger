@@ -53,7 +53,7 @@ type workerJob struct {
 //
 // Progress is reported via the app's scanStatus field (updated atomically)
 // so the frontend polling GetScanStatus() sees a live progress bar.
-func (a *App) ScanForTargetPhotosParallel(folderPath string, numWorkers int) ([]TargetPhoto, error) {
+func (a *App) ScanForTargetPhotosParallel(folderPath string, numWorkers int, recursive bool) ([]TargetPhoto, error) {
 	// Determine the worker count — default to CPU count, cap at 8.
 	if numWorkers <= 0 {
 		numWorkers = runtime.NumCPU()
@@ -79,6 +79,10 @@ func (a *App) ScanForTargetPhotosParallel(folderPath string, numWorkers int) ([]
 		}
 		atomic.AddInt64(&totalWalked, 1)
 		if d.IsDir() {
+			// When non-recursive, skip every directory except the root itself.
+			if !recursive && path != folderPath {
+				return fs.SkipDir
+			}
 			return nil
 		}
 		// Extension filter here — no stat call needed for non-photo files.

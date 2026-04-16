@@ -460,3 +460,29 @@
 /* Semantic alias for --good colour; complements .badge-excellent and    */
 /* .badge-poor which are already defined above.                           */
 .badge-good { background: var(--good); }
+
+/* ── Subfolder-recurse toggle (phase 4) ──────────────────────────────── */
+.subfolder-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-xs);
+    font-size: 0.75rem;
+    color: var(--text-light);
+    cursor: pointer;
+    user-select: none;
+}
+.subfolder-toggle input[type="checkbox"] {
+    margin: 0;
+    cursor: pointer;
+}
+
+/* ── Max-delta slider (phase 4) ──────────────────────────────────────── */
+.delta-slider-label { font-size: 0.75rem; color: var(--text-light); }
+.delta-slider { width: 160px; accent-color: var(--primary); cursor: pointer; }
+.delta-slider-value {
+    font-size: 0.8rem;
+    font-weight: var(--font-weight-semi);
+    color: var(--primary);
+    min-width: 58px;
+    text-align: left;
+}

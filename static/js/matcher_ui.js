@@ -12,26 +12,39 @@ import { updateMatchStats } from './scan.js';
 import { buildDetailHTML } from './detail_render.js';
 import { refreshLocationFor } from './geocode.js';
 
+// formatDeltaMinutes turns a minute count into the compact label shown next
+// to the slider: "5 min", "30 min", "2 h", "1 h 30".
+function formatDeltaMinutes(m) {
+    if (m < 60) return `${m} min`;
+    const h = Math.floor(m / 60);
+    const rem = m % 60;
+    if (rem === 0) return `${h} h`;
+    return `${h} h ${rem}`;
+}
+
 // initMatcher wires Zone A match controls and Zone C click delegation.
 export function initMatcher() {
     const matchBtn = document.getElementById('btn-match-all');
     if (matchBtn) matchBtn.addEventListener('click', handleMatchAllClick);
-    document.querySelectorAll('.threshold-btn').forEach(btn => {
-        btn.addEventListener('click', () => {
-            const val = parseInt(btn.dataset.minutes, 10);
-            if (!isNaN(val)) setThreshold(val, btn);
+
+    const slider = document.getElementById('delta-slider');
+    const valueLabel = document.getElementById('delta-slider-value');
+    if (slider && valueLabel) {
+        slider.value = String(state.matchThreshold);
+        valueLabel.textContent = formatDeltaMinutes(state.matchThreshold);
+        // Live-update the label on drag; commit to state only on release so
+        // scan/match stats don't recompute 60 times/sec while the user drags.
+        slider.addEventListener('input', () => {
+            valueLabel.textContent = formatDeltaMinutes(parseInt(slider.value, 10));
         });
-    });
+        slider.addEventListener('change', () => {
+            state.matchThreshold = parseInt(slider.value, 10);
+        });
+    }
+
     document.addEventListener('photo-selected', e => showPhotoDetail(e.detail.photo));
     const panel = document.querySelector('.match-panel');
     if (panel) panel.addEventListener('click', handlePanelClick);
-}
-
-// setThreshold updates state.matchThreshold and marks the active button.
-function setThreshold(minutes, activeBtn) {
-    state.matchThreshold = minutes;
-    document.querySelectorAll('.threshold-btn').forEach(b => b.classList.remove('active'));
-    if (activeBtn) activeBtn.classList.add('active');
 }
 
 // handleMatchAllClick runs the full GPS matching engine and refreshes Zone B/C.

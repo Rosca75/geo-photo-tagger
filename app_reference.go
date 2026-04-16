@@ -32,7 +32,7 @@ type ReferenceFolderInfo struct {
 // If target photos have already been scanned, a date range filter is computed
 // from their timestamps to skip reference files that clearly can't match —
 // this avoids expensive EXIF reads on large libraries spanning many years.
-func (a *App) AddReferenceFolder(path string) (ReferenceFolderInfo, error) {
+func (a *App) AddReferenceFolder(path string, recursive bool) (ReferenceFolderInfo, error) {
 	a.scanStatus = ScanStatus{
 		InProgress: true,
 		Phase:      "scanning_references",
@@ -43,7 +43,7 @@ func (a *App) AddReferenceFolder(path string) (ReferenceFolderInfo, error) {
 	// Returns a zero DateRange (scan everything) if no targets are loaded yet.
 	dateFilter := a.computeTargetDateRange()
 
-	photos, err := ScanForReferencePhotos(path, dateFilter)
+	photos, err := ScanForReferencePhotos(path, dateFilter, recursive)
 	if err != nil {
 		a.scanStatus = ScanStatus{Phase: "idle", Message: err.Error()}
 		return ReferenceFolderInfo{}, fmt.Errorf("scanning reference folder: %w", err)

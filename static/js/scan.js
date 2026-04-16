@@ -18,6 +18,13 @@ export function initScan() {
     if (resetBtn) {
         resetBtn.addEventListener('click', handleResetSource);
     }
+    // Bind the Include-subfolders checkbox so source scans reflect the
+    // user's choice. Default preserves pre-phase-4 recursive behavior.
+    const chk = document.getElementById('chk-source-recursive');
+    if (chk) {
+        chk.checked = state.sourceRecursive;
+        chk.addEventListener('change', () => { state.sourceRecursive = chk.checked; });
+    }
     updateMatchStats();
 }
 
@@ -77,7 +84,7 @@ async function runScan(path) {
 
     try {
         // scanTargetFolder returns Promise<TargetPhoto[]> via Wails bridge
-        const photos = await scanTargetFolder(path);
+        const photos = await scanTargetFolder(path, state.sourceRecursive);
         state.targetPhotos = Array.isArray(photos) ? photos : [];
         renderTable(state.targetPhotos);
         updateMatchStats();

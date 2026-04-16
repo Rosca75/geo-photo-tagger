@@ -44,5 +44,12 @@ export const state = {
 
     // Whether the mini world map is visible in Zone C (populated in phase 5).
     // Default false: no Leaflet CDN download until the user opts in.
-    mapEnabled: false
+    mapEnabled: false,
+
+    // Whether Source scans recurse into subfolders. Default true preserves
+    // pre-phase-4 behavior.
+    sourceRecursive: true,
+
+    // Whether Ref scans recurse into subfolders. Default true.
+    refRecursive: true
 };
