@@ -29,6 +29,9 @@ coverage.html
 # Vendor directory
 vendor/
 
+# Samples files directory (pictures)
+samples/
+
 # Wails build output
 build/
 
