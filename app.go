@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"os"
 	"strings"
 	"time"
 
@@ -58,9 +59,10 @@ func NewApp() *App {
 // It stores the context which is required for runtime.OpenDirectoryDialog etc.
 func (a *App) startup(ctx context.Context) {
 	a.ctx = ctx
-	// Enable debug logging during development so per-file EXIF timing is visible.
-	// Change to setupLogger(false) for production builds.
-	setupLogger(true)
+	// Debug-level logging is opt-in via the GPT_DEBUG_LOG env var so typical
+	// wails dev sessions are not flooded with one log line per photo.
+	// Set GPT_DEBUG_LOG=1 before launching wails dev to restore per-file timing.
+	setupLogger(os.Getenv("GPT_DEBUG_LOG") == "1")
 }
 
 // OpenFolderDialog opens the native OS folder picker dialog.

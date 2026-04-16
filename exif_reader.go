@@ -14,7 +14,6 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"time"
 
 	heif "github.com/jdeng/goheif/heif"
 	"github.com/rwcarlsen/goexif/exif"
@@ -149,8 +148,6 @@ func ReadHEICExif(path string) (*EXIFData, error) {
 // Keep ReadEXIF for detail views (Phase 5+) where richer metadata is needed.
 // Only use ReadEXIFForScan in the scan path where we check GPS presence.
 func ReadEXIFForScan(path string) (*EXIFData, error) {
-	start := time.Now()
-
 	f, err := os.Open(path)
 	if err != nil {
 		return nil, fmt.Errorf("opening %q: %w", path, err)
@@ -213,14 +210,6 @@ func ReadEXIFForScan(path string) (*EXIFData, error) {
 	if err == nil {
 		result.CameraModel, _ = modelTag.StringVal()
 	}
-
-	// Per-file timing logged at Debug level only (disabled in production builds).
-	slog.Debug("exif_read",
-		"path", path,
-		"has_gps", result.HasGPS,
-		"has_datetime", result.HasDateTime,
-		"duration_us", time.Since(start).Microseconds(),
-	)
 
 	return result, nil
 }
