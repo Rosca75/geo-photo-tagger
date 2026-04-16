@@ -24,9 +24,25 @@ function handlePanelActionClick(e) {
     else if (undoBtn) handleUndo(undoBtn);
 }
 
+// buildApplyWarning returns the standard warning text shown in apply
+// confirmation dialogs. Reminds the user to close tools like Lightroom or
+// Bridge that may hold the DNG file open — on Windows an open file handle
+// will cause the GPS write to fail mid-flight, and the lazy-backup undo
+// depends on a clean pre-apply state.
+function buildApplyWarning(photoCount) {
+    const plural = photoCount !== 1 ? 's' : '';
+    return `Apply GPS data to ${photoCount} photo${plural}?
+
+Please close any app (Lightroom, Photoshop, Bridge, Explorer preview)
+that may have these photos open — they must not be locked by another
+process, or the write will fail.`;
+}
+
 // handleApplySingle writes GPS to one photo when its Apply GPS button is clicked.
 async function handleApplySingle(btn) {
     const { path, lat, lon } = btn.dataset;
+    const ok = await showConfirm(buildApplyWarning(1));
+    if (!ok) return;
     btn.disabled = true;
     btn.textContent = 'Applying\u2026';
     try {
@@ -66,7 +82,7 @@ async function handleApplyAll() {
     const count = state.acceptedMatches.size;
     if (count === 0) { showToast('No accepted matches to apply.', 'error'); return; }
 
-    const ok = await showConfirm(`Apply GPS to ${count} photo${count !== 1 ? 's' : ''}?`);
+    const ok = await showConfirm(buildApplyWarning(count));
     if (!ok) return;
 
     const matches = [];
@@ -127,24 +143,42 @@ function showToast(msg, type = 'success') {
 }
 
 // showConfirm shows a modal confirmation dialog and resolves to true (OK) or false (Cancel).
+// The message is split on blank lines and each block is set via textContent on a <p>
+// element — safe for multi-line warnings (phase 3c) and XSS-safe by construction.
 function showConfirm(message) {
     return new Promise(resolve => {
         const overlay = document.createElement('div');
         overlay.className = 'confirm-overlay';
-        overlay.innerHTML = `
-            <div class="confirm-box">
-                <p>${message}</p>
-                <div class="btn-row">
-                    <button class="btn btn-primary" id="confirm-ok">Confirm</button>
-                    <button class="btn btn-secondary" id="confirm-cancel">Cancel</button>
-                </div>
-            </div>`;
+
+        const box = document.createElement('div');
+        box.className = 'confirm-box';
+
+        // Split on one or more blank lines — each paragraph becomes its own <p>.
+        const paragraphs = String(message).split(/\n\s*\n/);
+        paragraphs.forEach(block => {
+            const p = document.createElement('p');
+            p.style.whiteSpace = 'pre-line';
+            p.textContent = block.trim();
+            box.appendChild(p);
+        });
+
+        const btnRow = document.createElement('div');
+        btnRow.className = 'btn-row';
+        const okBtn = document.createElement('button');
+        okBtn.className = 'btn btn-primary';
+        okBtn.id = 'confirm-ok';
+        okBtn.textContent = 'Confirm';
+        const cancelBtn = document.createElement('button');
+        cancelBtn.className = 'btn btn-secondary';
+        cancelBtn.id = 'confirm-cancel';
+        cancelBtn.textContent = 'Cancel';
+        btnRow.appendChild(okBtn);
+        btnRow.appendChild(cancelBtn);
+        box.appendChild(btnRow);
+        overlay.appendChild(box);
+
         document.body.appendChild(overlay);
-        overlay.querySelector('#confirm-ok').addEventListener('click', () => {
-            overlay.remove(); resolve(true);
-        });
-        overlay.querySelector('#confirm-cancel').addEventListener('click', () => {
-            overlay.remove(); resolve(false);
-        });
+        okBtn.addEventListener('click', () => { overlay.remove(); resolve(true); });
+        cancelBtn.addEventListener('click', () => { overlay.remove(); resolve(false); });
     });
 }

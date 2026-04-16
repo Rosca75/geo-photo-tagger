@@ -84,6 +84,18 @@ func (a *App) ScanTargetFolder(path string) ([]TargetPhoto, error) {
 		Message:    "Scanning for photos without GPS...",
 	}
 
+	// Clean orphaned backup sidecars from the previously-scanned folder (if any)
+	// and from the folder we're about to scan. Keeps pending undos intact; only
+	// removes sidecars whose DNG was deleted.
+	if a.targetFolder != "" && a.targetFolder != path {
+		if n := SweepOrphanedSidecars(a.targetFolder); n > 0 {
+			slog.Info("orphan_sidecars_cleared", "folder", a.targetFolder, "count", n)
+		}
+	}
+	if n := SweepOrphanedSidecars(path); n > 0 {
+		slog.Info("orphan_sidecars_cleared", "folder", path, "count", n)
+	}
+
 	// Remember the target folder so ClearAllBackups knows where to look later.
 	a.targetFolder = path
 
