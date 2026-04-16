@@ -11,6 +11,7 @@ import { renderPreview } from './preview.js';
 import { updateMatchStats } from './scan.js';
 import { buildDetailHTML } from './detail_render.js';
 import { refreshLocationFor } from './geocode.js';
+import { toggleMap, renderMap } from './map.js';
 
 // formatDeltaMinutes turns a minute count into the compact label shown next
 // to the slider: "5 min", "30 min", "2 h", "1 h 30".
@@ -94,6 +95,10 @@ export function showPhotoDetail(photo) {
     if (acc) {
         refreshLocationFor(acc, panel);
     }
+    // Render the mini-map only when the user has opted in (phase 5).
+    if (acc && state.mapEnabled) {
+        renderMap(acc.lat, acc.lon, panel);
+    }
 }
 
 // showZoneMessage puts a plain message in Zone C.
@@ -103,8 +108,11 @@ function showZoneMessage(msg) {
 }
 
 // handlePanelClick delegates click events within Zone C. Apply / Undo buttons
-// are handled by actions.js; this routes single-match and candidate clicks.
+// are handled by actions.js; this routes single-match, map-toggle, and
+// candidate clicks.
 function handlePanelClick(e) {
+    const mapToggleBtn = e.target.closest('.btn-toggle-map');
+    if (mapToggleBtn) { toggleMap(); return; }
     const matchSingleBtn = e.target.closest('.btn-match-single');
     if (matchSingleBtn) { handleMatchSingle(matchSingleBtn); return; }
     const candidateRow = e.target.closest('.detail-candidate');
