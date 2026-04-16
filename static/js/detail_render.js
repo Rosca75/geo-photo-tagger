@@ -112,14 +112,23 @@ function buildGPSPreviewWrapper(acc) {
 
 // buildGPSPreview renders coordinates and location info for the selected candidate.
 // Exported so matcher_ui.js can inject the card after a candidate is picked.
+// When state.mapEnabled is true, also includes a mini-map container that
+// map.js populates after Leaflet lazy-loads.
 export function buildGPSPreview(acc) {
+    const mapToggleLabel = state.mapEnabled ? 'Hide map' : 'Show map';
+    const mapSlot = state.mapEnabled
+        ? '<div id="gps-mini-map" class="gps-mini-map"></div>'
+        : '';
     return `
         <div class="gps-preview-card">
             <div class="gps-coords">
                 <span class="label-small">Coordinates:</span>
                 <span class="gps-value">${acc.lat.toFixed(6)}, ${acc.lon.toFixed(6)}</span>
+                <button class="btn btn-sm btn-secondary btn-toggle-map"
+                        title="Show or hide the mini map preview">${mapToggleLabel}</button>
             </div>
-            <div id="gps-location-info" class="gps-location muted">Loading location&hellip;</div>
+            <div id="gps-location-info" class="gps-location muted">Loading location\u2026</div>
+            ${mapSlot}
         </div>`;
 }
 

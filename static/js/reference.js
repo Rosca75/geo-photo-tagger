@@ -12,6 +12,13 @@ export function initReference() {
     if (btn) {
         btn.addEventListener('click', handleAddReferenceClick);
     }
+    // Bind the Include-subfolders checkbox for reference scans. Default
+    // preserves pre-phase-4 recursive behavior.
+    const chk = document.getElementById('chk-ref-recursive');
+    if (chk) {
+        chk.checked = state.refRecursive;
+        chk.addEventListener('change', () => { state.refRecursive = chk.checked; });
+    }
     renderReferenceList();
 }
 
@@ -23,7 +30,7 @@ async function handleAddReferenceClick() {
 
     try {
         // Returns { path, photoCount } from Go
-        const info = await addReferenceFolder(path);
+        const info = await addReferenceFolder(path, state.refRecursive);
         if (!info || !info.path) return;
 
         // Replace existing entry (if re-added) or push new one

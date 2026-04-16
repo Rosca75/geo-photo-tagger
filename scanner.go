@@ -138,7 +138,7 @@ func isReferenceExtension(ext string) bool {
 // large reference libraries that span years of photos.
 //
 // Uses filepath.WalkDir (Go 1.16+) — see ScanForTargetPhotos for rationale.
-func ScanForReferencePhotos(folderPath string, dateFilter DateRange) ([]ReferencePhoto, error) {
+func ScanForReferencePhotos(folderPath string, dateFilter DateRange, recursive bool) ([]ReferencePhoto, error) {
 	var results []ReferencePhoto
 	var skippedByDate int
 
@@ -151,6 +151,10 @@ func ScanForReferencePhotos(folderPath string, dateFilter DateRange) ([]Referenc
 			return nil
 		}
 		if d.IsDir() {
+			// When non-recursive, skip every directory except the root itself.
+			if !recursive && path != folderPath {
+				return fs.SkipDir
+			}
 			return nil
 		}
 

@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"os"
 	"strings"
 	"time"
 
@@ -47,6 +48,11 @@ type App struct {
 
 	// scanStatus tracks the current scan or match operation progress.
 	scanStatus ScanStatus
+
+	// lastSourceRecursive remembers whether the most recent source scan
+	// descended into subfolders. Needed by RunSameSourceMatching (phase 7)
+	// so the in-folder reference sweep matches the user's original intent.
+	lastSourceRecursive bool
 }
 
 // NewApp creates a new App instance with zero/empty state.
@@ -58,9 +64,10 @@ func NewApp() *App {
 // It stores the context which is required for runtime.OpenDirectoryDialog etc.
 func (a *App) startup(ctx context.Context) {
 	a.ctx = ctx
-	// Enable debug logging during development so per-file EXIF timing is visible.
-	// Change to setupLogger(false) for production builds.
-	setupLogger(true)
+	// Debug-level logging is opt-in via the GPT_DEBUG_LOG env var so typical
+	// wails dev sessions are not flooded with one log line per photo.
+	// Set GPT_DEBUG_LOG=1 before launching wails dev to restore per-file timing.
+	setupLogger(os.Getenv("GPT_DEBUG_LOG") == "1")
 }
 
 // OpenFolderDialog opens the native OS folder picker dialog.
@@ -74,7 +81,7 @@ func (a *App) OpenFolderDialog() (string, error) {
 // ScanTargetFolder walks folderPath for photos without GPS EXIF data.
 // Updates scanStatus during the operation so GetScanStatus can report progress.
 // Returns the full list of target photos directly to the frontend.
-func (a *App) ScanTargetFolder(path string) ([]TargetPhoto, error) {
+func (a *App) ScanTargetFolder(path string, recursive bool) ([]TargetPhoto, error) {
 	// Signal to any polling frontend that a scan is running
 	a.scanStatus = ScanStatus{
 		InProgress: true,
@@ -82,11 +89,25 @@ func (a *App) ScanTargetFolder(path string) ([]TargetPhoto, error) {
 		Message:    "Scanning for photos without GPS...",
 	}
 
+	// Clean orphaned backup sidecars from the previously-scanned folder (if any)
+	// and from the folder we're about to scan. Keeps pending undos intact; only
+	// removes sidecars whose DNG was deleted.
+	if a.targetFolder != "" && a.targetFolder != path {
+		if n := SweepOrphanedSidecars(a.targetFolder); n > 0 {
+			slog.Info("orphan_sidecars_cleared", "folder", a.targetFolder, "count", n)
+		}
+	}
+	if n := SweepOrphanedSidecars(path); n > 0 {
+		slog.Info("orphan_sidecars_cleared", "folder", path, "count", n)
+	}
+
 	// Remember the target folder so ClearAllBackups knows where to look later.
 	a.targetFolder = path
+	// Persist the recursion choice for RunSameSourceMatching (phase 7).
+	a.lastSourceRecursive = recursive
 
 	// Use the parallel scanner — 0 means "default workers" (min(NumCPU, 8)).
-	photos, err := a.ScanForTargetPhotosParallel(path, 0)
+	photos, err := a.ScanForTargetPhotosParallel(path, 0, recursive)
 	if err != nil {
 		a.scanStatus = ScanStatus{Phase: "idle", Message: err.Error()}
 		return nil, err

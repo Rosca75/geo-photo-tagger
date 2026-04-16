@@ -1,10 +1,9 @@
 // table.js — Target photos table rendering for Zone B
 // Builds and updates the data table showing scanned target photos.
 // Column headers are clickable and toggle sort direction.
-// Each row: row number, filename, date/time, camera model, score, status.
+// Per-row rendering lives in table_row.js (150-line split).
 
-import { state } from './state.js';
-import { escapeHtml } from './helpers.js';
+import { buildRow } from './table_row.js';
 
 // Module-level sort state for column header toggling.
 // Read by filters.js via getSortState() so that applyFilters() can sort
@@ -46,11 +45,13 @@ function buildTable(photos) {
 }
 
 // buildHeader creates the <thead> with clickable sortable column headers.
-// Each sortable header shows an up/down arrow when active.
+// The first column is a select-all checkbox (phase 6); remaining sortable
+// headers show an up/down arrow when active.
 function buildHeader() {
     const thead = document.createElement('thead');
     const tr = document.createElement('tr');
     const cols = [
+        ['select',   '',            false, 'col-select'],
         ['num',      '#',           false, 'col-num'],
         ['filename', 'Filename',    true,  'col-filename'],
         ['date',     'Date / Time', true,  'col-date'],
@@ -61,6 +62,18 @@ function buildHeader() {
     cols.forEach(([key, label, sortable, cls]) => {
         const th = document.createElement('th');
         th.className = cls;
+        if (key === 'select') {
+            th.innerHTML = '<input type="checkbox" id="cb-select-all" title="Select/deselect all matched photos">';
+            tr.appendChild(th);
+            // Wire the handler on next tick so the element is in the DOM.
+            setTimeout(() => {
+                const selAll = document.getElementById('cb-select-all');
+                if (selAll) {
+                    selAll.addEventListener('change', () => toggleAllSelection(selAll.checked));
+                }
+            }, 0);
+            return;
+        }
         if (!sortable) { th.textContent = label; tr.appendChild(th); return; }
         th.dataset.sort = key;
         th.title = `Sort by ${label}`;
@@ -85,62 +98,14 @@ function handleHeaderSort(column) {
     }));
 }
 
-// buildRow creates one <tr> for a single target photo.
-// Clicking the row selects it, updates state.selectedPhoto, and fires 'photo-selected'.
-function buildRow(photo, idx) {
-    const tr = document.createElement('tr');
-    tr.className = 'photo-row';
-    tr.dataset.path = photo.path;
-
-    // Format the EXIF datetime (Go serialises time.Time as ISO 8601 string)
-    const rawDate = photo.dateTimeOriginal;
-    const dateStr = rawDate && rawDate !== '0001-01-01T00:00:00Z'
-        ? new Date(rawDate).toLocaleString()
-        : '\u2014';
-
-    // Look up match result for this photo from state.matchResults
-    const result = state.matchResults
-        ? state.matchResults.find(r => r.targetPath === photo.path)
-        : null;
-    const best = result && result.bestCandidate ? result.bestCandidate : null;
-
-    // Score badge
-    const scoreBadge = best
-        ? `<span class="badge ${scoreBadgeClass(best.score)}">${best.score}</span>`
-        : '<span class="muted">\u2014</span>';
-
-    // Status badge
-    const statusClass = best ? 'badge-matched' : 'badge-unmatched';
-    const statusLabel = best ? 'matched' : 'unmatched';
-
-    tr.innerHTML = `
-        <td class="col-num">${idx + 1}</td>
-        <td class="col-filename" title="${escapeHtml(photo.path)}">${escapeHtml(photo.filename)}</td>
-        <td class="col-date">${dateStr}</td>
-        <td class="col-camera">${escapeHtml(photo.cameraModel || '\u2014')}</td>
-        <td class="col-score">${scoreBadge}</td>
-        <td class="col-status"><span class="badge ${statusClass}">${statusLabel}</span></td>`;
-
-    tr.addEventListener('click', () => selectPhoto(photo, tr));
-    return tr;
-}
-
-// scoreBadgeClass maps a numeric score to a CSS badge class name.
-function scoreBadgeClass(score) {
-    if (score >= 90) return 'badge-excellent';
-    if (score >= 50) return 'badge-matched';
-    return 'badge-poor';
-}
-
-// selectPhoto marks a row as selected, updates shared state, and fires
-// 'photo-selected' so matcher_ui.js can update Zone C without a circular import.
-function selectPhoto(photo, tr) {
-    document.querySelectorAll('.photo-row.selected')
-        .forEach(r => r.classList.remove('selected'));
-
-    tr.classList.add('selected');
-    state.selectedPhoto = photo.path;
-
-    // Notify other modules that a photo was selected
-    document.dispatchEvent(new CustomEvent('photo-selected', { detail: { photo } }));
+// toggleAllSelection flips every visible row checkbox to `checked` and
+// fires the change handler on each so state.acceptedMatches updates via
+// the per-row toggleRowSelection handler wired in table_row.js.
+function toggleAllSelection(checked) {
+    document.querySelectorAll('.row-select-cb').forEach(cb => {
+        if (cb.checked !== checked) {
+            cb.checked = checked;
+            cb.dispatchEvent(new Event('change'));
+        }
+    });
 }

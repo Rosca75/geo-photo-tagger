@@ -4,24 +4,22 @@ package main
 // See CLAUDE.md §12 for safety rules: always back up, always verify, keep .bak files.
 
 import (
-	"bytes"
 	"fmt"
 	"math"
 	"os"
 	"path/filepath"
 	"strings"
-
-	exif "github.com/dsoprea/go-exif/v3"
-	exifcommon "github.com/dsoprea/go-exif/v3/common"
-	jpegstructure "github.com/dsoprea/go-jpeg-image-structure/v2"
 )
 
 // WriteGPS injects GPS coordinates into a photo's EXIF data.
-// Backs up the original to <file>.bak, writes GPS, then verifies by re-reading.
-// On any failure the backup is restored before the error is returned.
+//
+// DNG backup strategy: a lazy sidecar (dng_backup.go) stores only the 4-byte
+// pointer value and file size — ~300 bytes instead of 44 MB. Undo truncates
+// the file and restores the pointer. A pre-apply hash guards against silent
+// corruption if another tool edited the file between apply and undo.
+//
+// JPEG backup strategy: unchanged — full file copy to <path>.bak.
 func WriteGPS(targetPath string, lat, lon float64) error {
-	// Check if file is writable before creating backup.
-	// Creating a .bak of a read-only file is wasted work if we can't write back.
 	fi, err := os.Stat(targetPath)
 	if err != nil {
 		return fmt.Errorf("stat %q: %w", targetPath, err)
@@ -29,24 +27,47 @@ func WriteGPS(targetPath string, lat, lon float64) error {
 	if fi.Mode().Perm()&0200 == 0 {
 		return fmt.Errorf("file %q is read-only — cannot write GPS data", targetPath)
 	}
-	backupPath := targetPath + ".bak"
-	if err := copyFile(targetPath, backupPath); err != nil {
-		return fmt.Errorf("backup failed: %w", err)
-	}
+
 	ext := strings.ToLower(filepath.Ext(targetPath))
 	switch ext {
 	case ".dng":
-		return writeAndVerify(targetPath, backupPath, lat, lon, "DNG", writeGPSToDNG)
+		// Capture pre-apply state to the sidecar BEFORE any file modification.
+		if err := captureDNGBackup(targetPath); err != nil {
+			return fmt.Errorf("DNG backup capture failed: %w", err)
+		}
+		return writeAndVerify(targetPath, sidecarPath(targetPath), lat, lon, "DNG", writeGPSToDNG)
+
 	case ".jpg", ".jpeg":
+		backupPath := targetPath + ".bak"
+		if err := copyFile(targetPath, backupPath); err != nil {
+			return fmt.Errorf("backup failed: %w", err)
+		}
 		return writeAndVerify(targetPath, backupPath, lat, lon, "JPEG", writeGPSToJPEG)
+
 	default:
 		return fmt.Errorf("unsupported format for GPS write: %s", ext)
 	}
 }
 
-// writeAndVerify runs a format-specific GPS writer, then re-reads EXIF to confirm
-// the coordinates landed within 0.001° (~110 m) — a tolerance that survives DMS
-// rounding but catches wrong writes. On any failure the backup is restored.
+// restoreFromBackup is used by writeAndVerify's failure path. It handles
+// both the legacy JPEG .bak (file copy) and the new DNG .bak.json (sidecar).
+func restoreFromBackup(targetPath, backupPath string) error {
+	// DNG sidecar case
+	if strings.HasSuffix(backupPath, ".bak.json") {
+		sc, err := loadDNGBackup(targetPath)
+		if err != nil {
+			return fmt.Errorf("load sidecar for restore: %w", err)
+		}
+		return undoDNGFromSidecar(targetPath, sc)
+	}
+	// JPEG full-copy case
+	return copyFile(backupPath, targetPath)
+}
+
+// writeAndVerify runs a format-specific GPS writer, then verifies the result.
+// For DNG it uses the direct-binary fast path in verifyGPSInDNG (~130 bytes
+// of I/O, file-size-independent). For JPEG it keeps the goexif round-trip
+// which has always worked. On any failure the backup is restored.
 func writeAndVerify(
 	targetPath, backupPath string,
 	lat, lon float64,
@@ -54,91 +75,51 @@ func writeAndVerify(
 	writer func(string, float64, float64) error,
 ) error {
 	if err := writer(targetPath, lat, lon); err != nil {
-		_ = copyFile(backupPath, targetPath)
+		_ = restoreFromBackup(targetPath, backupPath)
 		return fmt.Errorf("%s GPS write failed: %w", label, err)
 	}
-	result, err := ReadEXIF(targetPath)
-	if err != nil || !result.HasGPS ||
-		math.Abs(result.Latitude-lat) > 0.001 ||
-		math.Abs(result.Longitude-lon) > 0.001 {
-		_ = copyFile(backupPath, targetPath)
-		return fmt.Errorf("%s GPS verification failed for %s", label, filepath.Base(targetPath))
+
+	var verifyErr error
+	if label == "DNG" {
+		verifyErr = verifyGPSInDNG(targetPath, lat, lon)
+	} else {
+		result, err := ReadEXIF(targetPath)
+		if err != nil || !result.HasGPS ||
+			math.Abs(result.Latitude-lat) > 0.001 ||
+			math.Abs(result.Longitude-lon) > 0.001 {
+			verifyErr = fmt.Errorf("EXIF verification failed")
+		}
+	}
+	if verifyErr != nil {
+		_ = restoreFromBackup(targetPath, backupPath)
+		return fmt.Errorf("%s GPS verification failed for %s: %w",
+			label, filepath.Base(targetPath), verifyErr)
 	}
 	return nil
 }
 
-// writeGPSToJPEG sets GPS EXIF tags in a JPEG using the dsoprea pipeline:
-// parse JPEG → build IFD tree → update GPS sub-IFD → encode → write to disk.
-func writeGPSToJPEG(path string, lat, lon float64) error {
-	jmp := jpegstructure.NewJpegMediaParser()
-	intfc, err := jmp.ParseFile(path)
-	if err != nil {
-		return fmt.Errorf("parse JPEG: %w", err)
-	}
-	sl := intfc.(*jpegstructure.SegmentList) // ParseFile returns MediaContext; cast needed
-
-	rootIb, err := sl.ConstructExifBuilder() // builds IFD tree from the APP1 segment
-	if err != nil {
-		return fmt.Errorf("construct EXIF builder: %w", err)
-	}
-	// IFD/GPSInfo is the GPS sub-IFD; GetOrCreateIbFromRootIb creates it if absent.
-	gpsIb, err := exif.GetOrCreateIbFromRootIb(rootIb, "IFD/GPSInfo")
-	if err != nil {
-		return fmt.Errorf("get GPS IFD: %w", err)
-	}
-	latRats, latRef := decimalToDMS(lat, true)
-	lonRats, lonRef := decimalToDMS(lon, false)
-	// The 4 mandatory GPS tags: hemisphere refs (ASCII) + DMS coordinates (RATIONAL).
-	if err = gpsIb.SetStandardWithName("GPSLatitudeRef", latRef); err != nil {
-		return fmt.Errorf("GPSLatitudeRef: %w", err)
-	}
-	if err = gpsIb.SetStandardWithName("GPSLatitude", latRats); err != nil {
-		return fmt.Errorf("GPSLatitude: %w", err)
-	}
-	if err = gpsIb.SetStandardWithName("GPSLongitudeRef", lonRef); err != nil {
-		return fmt.Errorf("GPSLongitudeRef: %w", err)
-	}
-	if err = gpsIb.SetStandardWithName("GPSLongitude", lonRats); err != nil {
-		return fmt.Errorf("GPSLongitude: %w", err)
-	}
-	if err = sl.SetExif(rootIb); err != nil {
-		return fmt.Errorf("set EXIF segments: %w", err)
-	}
-	var buf bytes.Buffer
-	if err = sl.Write(&buf); err != nil {
-		return fmt.Errorf("encode JPEG: %w", err)
-	}
-	return os.WriteFile(path, buf.Bytes(), 0644)
-}
-
-// decimalToDMS converts a decimal-degree value to EXIF GPS DMS rational format.
-// Returns []Rational{degrees, minutes, seconds} and a ref string (N/S or E/W).
-// Seconds uses denominator 10000 to preserve sub-second precision.
-func decimalToDMS(decimal float64, isLat bool) ([]exifcommon.Rational, string) {
-	ref := "N"
-	if isLat && decimal < 0 {
-		ref, decimal = "S", -decimal
-	} else if !isLat {
-		if decimal >= 0 {
-			ref = "E"
-		} else {
-			ref, decimal = "W", -decimal
-		}
-	}
-	deg := int(decimal)
-	mf := (decimal - float64(deg)) * 60
-	min := int(mf)
-	sec := (mf - float64(min)) * 60
-	return []exifcommon.Rational{
-		{Numerator: uint32(deg), Denominator: 1},
-		{Numerator: uint32(min), Denominator: 1},
-		{Numerator: uint32(int(sec * 10000)), Denominator: 10000},
-	}, ref
-}
-
-// UndoGPS restores targetPath from its .bak backup.
-// The .bak is preserved so the user can undo again. Returns error if no .bak exists.
+// UndoGPS restores targetPath from its backup (DNG sidecar or JPEG .bak).
+// For DNG, a pre-apply hash fingerprint in the sidecar is checked BEFORE
+// the undo runs — if the hash doesn't match, undo refuses and returns a
+// clear error. This catches the case where another tool (Lightroom, Bridge)
+// edited the DNG between apply and undo.
 func UndoGPS(targetPath string) error {
+	ext := strings.ToLower(filepath.Ext(targetPath))
+	if ext == ".dng" {
+		sc, err := loadDNGBackup(targetPath)
+		if err != nil {
+			if os.IsNotExist(err) {
+				return fmt.Errorf("no backup sidecar found for %s", filepath.Base(targetPath))
+			}
+			return err
+		}
+		if err := checkDNGTamper(targetPath, sc); err != nil {
+			return err
+		}
+		return undoDNGFromSidecar(targetPath, sc)
+	}
+
+	// JPEG path (unchanged)
 	backupPath := targetPath + ".bak"
 	if _, err := os.Stat(backupPath); os.IsNotExist(err) {
 		return fmt.Errorf("no backup found for %s", filepath.Base(targetPath))
@@ -146,15 +127,16 @@ func UndoGPS(targetPath string) error {
 	return copyFile(backupPath, targetPath)
 }
 
-// ClearBackups recursively deletes all .bak files under folderPath.
-// Returns the count of deleted files; unreadable entries are silently skipped.
+// ClearBackups recursively deletes .bak files AND .bak.json sidecars under
+// folderPath. Returns the total count of deleted files.
 func ClearBackups(folderPath string) (int, error) {
 	count := 0
 	walkErr := filepath.WalkDir(folderPath, func(path string, d os.DirEntry, err error) error {
 		if err != nil || d.IsDir() {
 			return nil
 		}
-		if strings.HasSuffix(path, ".bak") && os.Remove(path) == nil {
+		if (strings.HasSuffix(path, ".bak") || strings.HasSuffix(path, ".bak.json")) &&
+			os.Remove(path) == nil {
 			count++
 		}
 		return nil

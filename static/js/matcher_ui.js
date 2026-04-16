@@ -1,48 +1,69 @@
-// matcher_ui.js — GPS matching UI (Phase 4/5)
-// Handles the "Search for GPS match" button, threshold selector, Zone C
-// panel rendering, single-photo matching, and candidate radio-selection.
-// HTML construction lives in detail_render.js so both files stay small.
+// matcher_ui.js — GPS matching UI.
+// Handles the "Search for GPS match" button, Zone C panel rendering, and
+// single-photo matching. Candidate selection lives in matcher_select.js;
+// slider wiring lives in matcher_slider.js; HTML builders live in
+// detail_render.js — all split out to keep each file under 150 lines.
 
 import { state } from './state.js';
-import { runMatching, runMatchingSingle, reverseGeocode } from './api.js';
+import { runMatching, runMatchingSingle, runSameSourceMatching } from './api.js';
 import { renderTable } from './table.js';
 import { escapeHtml } from './helpers.js';
 import { renderPreview } from './preview.js';
 import { updateMatchStats } from './scan.js';
 import { buildDetailHTML } from './detail_render.js';
+import { refreshLocationFor } from './geocode.js';
+import { toggleMap, renderMap } from './map.js';
+import { acceptBestCandidate, handleCandidateSelect } from './matcher_select.js';
+import { initDeltaSlider } from './matcher_slider.js';
 
 // initMatcher wires Zone A match controls and Zone C click delegation.
 export function initMatcher() {
     const matchBtn = document.getElementById('btn-match-all');
     if (matchBtn) matchBtn.addEventListener('click', handleMatchAllClick);
-    document.querySelectorAll('.threshold-btn').forEach(btn => {
-        btn.addEventListener('click', () => {
-            const val = parseInt(btn.dataset.minutes, 10);
-            if (!isNaN(val)) setThreshold(val, btn);
+
+    initDeltaSlider();
+
+    // Phase 7: match-mode radio (External refs / GPS track / Same source).
+    document.querySelectorAll('input[name="match-mode"]').forEach(r => {
+        r.addEventListener('change', () => {
+            if (r.checked) state.matchMode = r.value;
         });
     });
+
     document.addEventListener('photo-selected', e => showPhotoDetail(e.detail.photo));
     const panel = document.querySelector('.match-panel');
     if (panel) panel.addEventListener('click', handlePanelClick);
 }
 
-// setThreshold updates state.matchThreshold and marks the active button.
-function setThreshold(minutes, activeBtn) {
-    state.matchThreshold = minutes;
-    document.querySelectorAll('.threshold-btn').forEach(b => b.classList.remove('active'));
-    if (activeBtn) activeBtn.classList.add('active');
-}
-
 // handleMatchAllClick runs the full GPS matching engine and refreshes Zone B/C.
+// Routes to the correct engine based on state.matchMode ('refs' / 'track' / 'same').
 async function handleMatchAllClick() {
     if (state.targetPhotos.length === 0) { showZoneMessage('Scan a source folder first.'); return; }
-    if (state.referenceFolders.length === 0 && state.gpsTrackFiles.length === 0) {
-        showZoneMessage('Add a reference folder or import a GPS track first.'); return;
+
+    // Client-side precondition checks per mode. These are UX, not security —
+    // the Go side validates independently.
+    if (state.matchMode === 'refs' && state.referenceFolders.length === 0) {
+        showZoneMessage('Add a reference folder (or switch to GPS track / Same source).'); return;
     }
+    if (state.matchMode === 'track' && state.gpsTrackFiles.length === 0) {
+        showZoneMessage('Import a GPS track (or switch to External refs / Same source).'); return;
+    }
+    // 'same' has no precondition beyond a scanned source folder.
+
     setMatchingIndicator(true);
     try {
-        const results = await runMatching({ maxTimeDeltaMinutes: state.matchThreshold });
+        const opts = { maxTimeDeltaMinutes: state.matchThreshold };
+        const results = state.matchMode === 'same'
+            ? await runSameSourceMatching(opts)
+            : await runMatching(opts);
         state.matchResults = Array.isArray(results) ? results : [];
+        // Auto-accept the best candidate for every matched photo. The user can
+        // uncheck individual rows in Zone B to exclude them from batch apply, or
+        // click a different candidate in Zone C to change the coords.
+        state.acceptedMatches.clear();
+        state.matchResults.forEach(r => {
+            if (r.bestCandidate) acceptBestCandidate(r.targetPath, r.bestCandidate);
+        });
         renderTable(state.targetPhotos);
         updateMatchStats();
         document.dispatchEvent(new CustomEvent('match-complete'));
@@ -72,6 +93,18 @@ export function showPhotoDetail(photo) {
         : null;
     panel.innerHTML = buildDetailHTML(photo, result);
     renderPreview(photo, panel);
+
+    // Kick off (cached) geocoding for the currently-accepted match, if any.
+    // This single call replaces all the old scattered reverseGeocode sites
+    // and fixes the race where re-renders orphaned previous .then() writes.
+    const acc = state.acceptedMatches.get(photo.path);
+    if (acc) {
+        refreshLocationFor(acc, panel);
+    }
+    // Render the mini-map only when the user has opted in (phase 5).
+    if (acc && state.mapEnabled) {
+        renderMap(acc.lat, acc.lon, panel);
+    }
 }
 
 // showZoneMessage puts a plain message in Zone C.
@@ -81,8 +114,11 @@ function showZoneMessage(msg) {
 }
 
 // handlePanelClick delegates click events within Zone C. Apply / Undo buttons
-// are handled by actions.js; this routes single-match and candidate clicks.
+// are handled by actions.js; this routes single-match, map-toggle, and
+// candidate clicks.
 function handlePanelClick(e) {
+    const mapToggleBtn = e.target.closest('.btn-toggle-map');
+    if (mapToggleBtn) { toggleMap(); return; }
     const matchSingleBtn = e.target.closest('.btn-match-single');
     if (matchSingleBtn) { handleMatchSingle(matchSingleBtn); return; }
     const candidateRow = e.target.closest('.detail-candidate');
@@ -99,6 +135,8 @@ async function handleMatchSingle(btn) {
         if (!state.matchResults) state.matchResults = [];
         const idx = state.matchResults.findIndex(r => r.targetPath === targetPath);
         if (idx >= 0) state.matchResults[idx] = result; else state.matchResults.push(result);
+        // Auto-accept its best candidate so the Zone B checkbox is ticked.
+        if (result && result.bestCandidate) acceptBestCandidate(targetPath, result.bestCandidate);
         renderTable(state.targetPhotos);
         updateMatchStats();
         const photo = state.targetPhotos.find(p => p.path === targetPath);
@@ -107,41 +145,5 @@ async function handleMatchSingle(btn) {
         console.error('Single match failed:', err);
         btn.disabled = false;
         btn.textContent = 'Search for GPS match';
-    }
-}
-
-// handleCandidateSelect implements exclusive radio-style selection.
-// Clicking the already-selected candidate deselects it (toggle off).
-function handleCandidateSelect(row) {
-    const d = row.dataset;
-    const targetPath = d.path;
-    const lat = parseFloat(d.lat), lon = parseFloat(d.lon);
-    const current = state.acceptedMatches.get(targetPath);
-    const same = current && current.sourcePath === d.sourcePath && Math.abs(current.lat - lat) < 1e-6;
-    if (same) state.acceptedMatches.delete(targetPath);
-    else state.acceptedMatches.set(targetPath, {
-        lat, lon, score: parseInt(d.score, 10), source: d.source, sourcePath: d.sourcePath
-    });
-    refreshAfterDecision(targetPath, !same);
-    // Fire-and-forget reverse geocoding for the newly-selected candidate.
-    if (!same) {
-        reverseGeocode(lat, lon).then(location => {
-            const locEl = document.getElementById('gps-location-info');
-            if (locEl) locEl.textContent = location || 'Location not available';
-        }).catch(() => { /* silent — raw coords still visible */ });
-    }
-}
-
-// refreshAfterDecision updates the Zone B status badge and re-renders Zone C.
-function refreshAfterDecision(targetPath, accepted) {
-    const row = document.querySelector(`.photo-row[data-path="${CSS.escape(targetPath)}"]`);
-    const badge = row && row.querySelector('.col-status .badge');
-    if (badge) {
-        badge.className = `badge ${accepted ? 'badge-applied' : 'badge-matched'}`;
-        badge.textContent = accepted ? 'accepted' : 'matched';
-    }
-    if (state.selectedPhoto) {
-        const photo = state.targetPhotos.find(p => p.path === state.selectedPhoto);
-        if (photo) showPhotoDetail(photo);
     }
 }
