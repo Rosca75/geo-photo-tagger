@@ -104,6 +104,17 @@ func BenchmarkApplyGPS_VerifyFullReader(b *testing.B) {
 	}
 }
 
-// BenchmarkApplyGPS_VerifyFastPath (phase 3b) is added once verifyGPSInDNG
-// lands in dng_gps_verify.go. Deliberately not in this phase-3a commit so
-// the test file compiles on its own.
+// BenchmarkApplyGPS_VerifyFastPath measures the phase-3b direct-binary
+// verification (~130 bytes of I/O, no goexif). Compare with VerifyFullReader.
+func BenchmarkApplyGPS_VerifyFastPath(b *testing.B) {
+	if _, err := os.Stat(sampleDNG); err != nil {
+		b.Skipf("%s not found: %v", sampleDNG, err)
+	}
+	path := cloneSample(b)
+	defer cleanupApply(path)
+	_ = writeGPSToDNG(path, 49.6116, 6.1319)
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_ = verifyGPSInDNG(path, 49.6116, 6.1319)
+	}
+}

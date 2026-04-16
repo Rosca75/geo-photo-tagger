@@ -44,9 +44,10 @@ func WriteGPS(targetPath string, lat, lon float64) error {
 	}
 }
 
-// writeAndVerify runs a format-specific GPS writer, then re-reads EXIF to confirm
-// the coordinates landed within 0.001° (~110 m) — a tolerance that survives DMS
-// rounding but catches wrong writes. On any failure the backup is restored.
+// writeAndVerify runs a format-specific GPS writer, then verifies the result.
+// For DNG it uses the direct-binary fast path in verifyGPSInDNG (~130 bytes
+// of I/O, file-size-independent). For JPEG it keeps the goexif round-trip
+// which has always worked. On any failure the backup is restored.
 func writeAndVerify(
 	targetPath, backupPath string,
 	lat, lon float64,
@@ -57,12 +58,22 @@ func writeAndVerify(
 		_ = copyFile(backupPath, targetPath)
 		return fmt.Errorf("%s GPS write failed: %w", label, err)
 	}
-	result, err := ReadEXIF(targetPath)
-	if err != nil || !result.HasGPS ||
-		math.Abs(result.Latitude-lat) > 0.001 ||
-		math.Abs(result.Longitude-lon) > 0.001 {
+
+	var verifyErr error
+	if label == "DNG" {
+		verifyErr = verifyGPSInDNG(targetPath, lat, lon)
+	} else {
+		result, err := ReadEXIF(targetPath)
+		if err != nil || !result.HasGPS ||
+			math.Abs(result.Latitude-lat) > 0.001 ||
+			math.Abs(result.Longitude-lon) > 0.001 {
+			verifyErr = fmt.Errorf("EXIF verification failed")
+		}
+	}
+	if verifyErr != nil {
 		_ = copyFile(backupPath, targetPath)
-		return fmt.Errorf("%s GPS verification failed for %s", label, filepath.Base(targetPath))
+		return fmt.Errorf("%s GPS verification failed for %s: %w",
+			label, filepath.Base(targetPath), verifyErr)
 	}
 	return nil
 }
