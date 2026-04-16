@@ -34,5 +34,15 @@ export const state = {
     selectedPhoto: null,
 
     // Map of targetPath → { lat, lon, score, source } for accepted matches
-    acceptedMatches: new Map()
+    acceptedMatches: new Map(),
+
+    // Cache: "lat5,lon5" → "City, Region, Country" (rounded to 5 decimals ≈ 1.1 m).
+    // Prevents repeat Nominatim calls when the user clicks back and forth
+    // between candidates with the same coordinates. Nominatim's usage policy
+    // is 1 request/second; the cache is what makes that survivable.
+    geocodeCache: new Map(),
+
+    // Whether the mini world map is visible in Zone C (populated in phase 5).
+    // Default false: no Leaflet CDN download until the user opts in.
+    mapEnabled: false
 };

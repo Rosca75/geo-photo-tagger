@@ -4,12 +4,13 @@
 // HTML construction lives in detail_render.js so both files stay small.
 
 import { state } from './state.js';
-import { runMatching, runMatchingSingle, reverseGeocode } from './api.js';
+import { runMatching, runMatchingSingle } from './api.js';
 import { renderTable } from './table.js';
 import { escapeHtml } from './helpers.js';
 import { renderPreview } from './preview.js';
 import { updateMatchStats } from './scan.js';
 import { buildDetailHTML } from './detail_render.js';
+import { refreshLocationFor } from './geocode.js';
 
 // initMatcher wires Zone A match controls and Zone C click delegation.
 export function initMatcher() {
@@ -72,6 +73,14 @@ export function showPhotoDetail(photo) {
         : null;
     panel.innerHTML = buildDetailHTML(photo, result);
     renderPreview(photo, panel);
+
+    // Kick off (cached) geocoding for the currently-accepted match, if any.
+    // This single call replaces all the old scattered reverseGeocode sites
+    // and fixes the race where re-renders orphaned previous .then() writes.
+    const acc = state.acceptedMatches.get(photo.path);
+    if (acc) {
+        refreshLocationFor(acc, panel);
+    }
 }
 
 // showZoneMessage puts a plain message in Zone C.
@@ -123,13 +132,6 @@ function handleCandidateSelect(row) {
         lat, lon, score: parseInt(d.score, 10), source: d.source, sourcePath: d.sourcePath
     });
     refreshAfterDecision(targetPath, !same);
-    // Fire-and-forget reverse geocoding for the newly-selected candidate.
-    if (!same) {
-        reverseGeocode(lat, lon).then(location => {
-            const locEl = document.getElementById('gps-location-info');
-            if (locEl) locEl.textContent = location || 'Location not available';
-        }).catch(() => { /* silent — raw coords still visible */ });
-    }
 }
 
 // refreshAfterDecision updates the Zone B status badge and re-renders Zone C.
