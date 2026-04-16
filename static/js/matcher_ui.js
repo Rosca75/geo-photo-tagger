@@ -1,7 +1,8 @@
-// matcher_ui.js — GPS matching UI (Phase 4/5)
-// Handles the "Search for GPS match" button, threshold selector, Zone C
-// panel rendering, single-photo matching, and candidate radio-selection.
-// HTML construction lives in detail_render.js so both files stay small.
+// matcher_ui.js — GPS matching UI (Phase 4/5/6)
+// Handles the "Search for GPS match" button, Zone C panel rendering, and
+// single-photo matching. Candidate selection lives in matcher_select.js;
+// slider wiring lives in matcher_slider.js; HTML builders live in
+// detail_render.js — all split out to keep each file under 150 lines.
 
 import { state } from './state.js';
 import { runMatching, runMatchingSingle } from './api.js';
@@ -12,36 +13,15 @@ import { updateMatchStats } from './scan.js';
 import { buildDetailHTML } from './detail_render.js';
 import { refreshLocationFor } from './geocode.js';
 import { toggleMap, renderMap } from './map.js';
-
-// formatDeltaMinutes turns a minute count into the compact label shown next
-// to the slider: "5 min", "30 min", "2 h", "1 h 30".
-function formatDeltaMinutes(m) {
-    if (m < 60) return `${m} min`;
-    const h = Math.floor(m / 60);
-    const rem = m % 60;
-    if (rem === 0) return `${h} h`;
-    return `${h} h ${rem}`;
-}
+import { acceptBestCandidate, handleCandidateSelect } from './matcher_select.js';
+import { initDeltaSlider } from './matcher_slider.js';
 
 // initMatcher wires Zone A match controls and Zone C click delegation.
 export function initMatcher() {
     const matchBtn = document.getElementById('btn-match-all');
     if (matchBtn) matchBtn.addEventListener('click', handleMatchAllClick);
 
-    const slider = document.getElementById('delta-slider');
-    const valueLabel = document.getElementById('delta-slider-value');
-    if (slider && valueLabel) {
-        slider.value = String(state.matchThreshold);
-        valueLabel.textContent = formatDeltaMinutes(state.matchThreshold);
-        // Live-update the label on drag; commit to state only on release so
-        // scan/match stats don't recompute 60 times/sec while the user drags.
-        slider.addEventListener('input', () => {
-            valueLabel.textContent = formatDeltaMinutes(parseInt(slider.value, 10));
-        });
-        slider.addEventListener('change', () => {
-            state.matchThreshold = parseInt(slider.value, 10);
-        });
-    }
+    initDeltaSlider();
 
     document.addEventListener('photo-selected', e => showPhotoDetail(e.detail.photo));
     const panel = document.querySelector('.match-panel');
@@ -58,6 +38,13 @@ async function handleMatchAllClick() {
     try {
         const results = await runMatching({ maxTimeDeltaMinutes: state.matchThreshold });
         state.matchResults = Array.isArray(results) ? results : [];
+        // Auto-accept the best candidate for every matched photo. The user can
+        // uncheck individual rows in Zone B to exclude them from batch apply, or
+        // click a different candidate in Zone C to change the coords.
+        state.acceptedMatches.clear();
+        state.matchResults.forEach(r => {
+            if (r.bestCandidate) acceptBestCandidate(r.targetPath, r.bestCandidate);
+        });
         renderTable(state.targetPhotos);
         updateMatchStats();
         document.dispatchEvent(new CustomEvent('match-complete'));
@@ -129,6 +116,8 @@ async function handleMatchSingle(btn) {
         if (!state.matchResults) state.matchResults = [];
         const idx = state.matchResults.findIndex(r => r.targetPath === targetPath);
         if (idx >= 0) state.matchResults[idx] = result; else state.matchResults.push(result);
+        // Auto-accept its best candidate so the Zone B checkbox is ticked.
+        if (result && result.bestCandidate) acceptBestCandidate(targetPath, result.bestCandidate);
         renderTable(state.targetPhotos);
         updateMatchStats();
         const photo = state.targetPhotos.find(p => p.path === targetPath);
@@ -137,34 +126,5 @@ async function handleMatchSingle(btn) {
         console.error('Single match failed:', err);
         btn.disabled = false;
         btn.textContent = 'Search for GPS match';
-    }
-}
-
-// handleCandidateSelect implements exclusive radio-style selection.
-// Clicking the already-selected candidate deselects it (toggle off).
-function handleCandidateSelect(row) {
-    const d = row.dataset;
-    const targetPath = d.path;
-    const lat = parseFloat(d.lat), lon = parseFloat(d.lon);
-    const current = state.acceptedMatches.get(targetPath);
-    const same = current && current.sourcePath === d.sourcePath && Math.abs(current.lat - lat) < 1e-6;
-    if (same) state.acceptedMatches.delete(targetPath);
-    else state.acceptedMatches.set(targetPath, {
-        lat, lon, score: parseInt(d.score, 10), source: d.source, sourcePath: d.sourcePath
-    });
-    refreshAfterDecision(targetPath, !same);
-}
-
-// refreshAfterDecision updates the Zone B status badge and re-renders Zone C.
-function refreshAfterDecision(targetPath, accepted) {
-    const row = document.querySelector(`.photo-row[data-path="${CSS.escape(targetPath)}"]`);
-    const badge = row && row.querySelector('.col-status .badge');
-    if (badge) {
-        badge.className = `badge ${accepted ? 'badge-applied' : 'badge-matched'}`;
-        badge.textContent = accepted ? 'accepted' : 'matched';
-    }
-    if (state.selectedPhoto) {
-        const photo = state.targetPhotos.find(p => p.path === state.selectedPhoto);
-        if (photo) showPhotoDetail(photo);
     }
 }
