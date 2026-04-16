@@ -63,6 +63,21 @@
             <div class="topbar-group" id="group-matching">
                 <div class="group-label">Matching</div>
                 <div class="topbar-row">
+                    <div class="match-mode-group" role="radiogroup" aria-label="Match source">
+                        <label title="Match against external reference folders (module 1)">
+                            <input type="radio" name="match-mode" value="refs" checked>
+                            <span>External refs</span>
+                        </label>
+                        <label title="Match against an imported GPS track file (module 2)">
+                            <input type="radio" name="match-mode" value="track">
+                            <span>GPS track</span>
+                        </label>
+                        <label title="Match against other photos in the same source folder (module 3)">
+                            <input type="radio" name="match-mode" value="same">
+                            <span>Same source</span>
+                        </label>
+                    </div>
+                    <div class="btn-separator"></div>
                     <button id="btn-match-all" class="btn btn-accent"
                             title="Search for GPS matches for all photos without GPS data">Search for GPS match</button>
                     <div class="btn-separator"></div>

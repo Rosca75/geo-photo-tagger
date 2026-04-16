@@ -496,3 +496,23 @@
     margin-top: var(--space-sm);
     overflow: hidden;
 }
+
+/* ── Match-mode radio group (phase 7 — module 3 same-source) ────────── */
+.match-mode-group {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-sm);
+    font-size: 0.75rem;
+    color: var(--text-light);
+}
+.match-mode-group label {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    cursor: pointer;
+    user-select: none;
+}
+.match-mode-group input[type="radio"] {
+    margin: 0;
+    cursor: pointer;
+}

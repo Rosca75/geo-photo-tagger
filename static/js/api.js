@@ -65,6 +65,12 @@ export async function runMatchingSingle(targetPath, opts) {
     return window.go.main.App.RunMatchingSingle(targetPath, opts);
 }
 
+// Run Module-3 "same-source" matching: use the scanned source folder as
+// both target pool and reference pool. See app_match_same.go.
+export async function runSameSourceMatching(opts) {
+    return window.go.main.App.RunSameSourceMatching(opts);
+}
+
 // Reverse-geocode GPS coordinates to a human-readable location string.
 // Returns a string like "Paris, Île-de-France, France" or "" on error.
 export async function reverseGeocode(lat, lon) {
