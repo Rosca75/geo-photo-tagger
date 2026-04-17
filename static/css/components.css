@@ -57,13 +57,6 @@
   font-size: 0.75rem;
 }
 
-/* Active state for threshold preset buttons */
-.threshold-btn.active {
-  background: var(--primary);
-  border-color: var(--primary);
-  color: #fff;
-}
-
 /* ── Folder path input ───────────────────────────────────────────────── */
 
 .folder-input {
@@ -285,7 +278,7 @@
 }
 
 /* ── Filter buttons active state ─────────────────────────────────────── */
-/* Same pattern as .threshold-btn.active — primary fill, white text */
+/* Primary fill with white text to indicate the active filter. */
 .filter-btn.active {
   background: var(--primary);
   border-color: var(--primary);
