@@ -15,6 +15,7 @@ import { refreshLocationFor } from './geocode.js';
 import { toggleMap, renderMap } from './map.js';
 import { acceptBestCandidate, handleCandidateSelect } from './matcher_select.js';
 import { initDeltaSlider } from './matcher_slider.js';
+import { wireCandidateHovers } from './hover_thumbnail.js';
 
 // initMatcher wires Zone A match controls and Zone C click delegation.
 export function initMatcher() {
@@ -98,13 +99,12 @@ export function showPhotoDetail(photo) {
     // This single call replaces all the old scattered reverseGeocode sites
     // and fixes the race where re-renders orphaned previous .then() writes.
     const acc = state.acceptedMatches.get(photo.path);
-    if (acc) {
-        refreshLocationFor(acc, panel);
-    }
+    if (acc) refreshLocationFor(acc, panel);
     // Render the mini-map only when the user has opted in (phase 5).
-    if (acc && state.mapEnabled) {
-        renderMap(acc.lat, acc.lon, panel);
-    }
+    if (acc && state.mapEnabled) renderMap(acc.lat, acc.lon, panel);
+    // Attach hover-preview handlers to each candidate. Re-attached on every
+    // render; safe because buildDetailHTML replaces the panel's contents.
+    wireCandidateHovers(panel);
 }
 
 // showZoneMessage puts a plain message in Zone C.

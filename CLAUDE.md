@@ -140,6 +140,7 @@ geo-photo-tagger/
         ├── helpers.js        escapeHtml, formatDate shared utilities
         ├── preview.js        Thumbnail preview card (Zone C header)
         ├── filters.js        Match result filtering (sort lives in table.js)
+        ├── hover_thumbnail.js Floating 32x32 preview on Zone C candidate hover
         └── actions.js        GPS apply, batch apply, undo handlers + confirm dialog
 ```
 
@@ -171,6 +172,7 @@ no `fetch()` calls. Instead:
 | `App.RunSameSourceMatching(opts)` | `(a *App) RunSameSourceMatching(opts MatchOptions)` | Module 3: match using in-folder geolocated photos as references |
 | `App.GetMatchResults()` | `(a *App) GetMatchResults()` | Poll matching progress |
 | `App.GetThumbnail(path)` | `(a *App) GetThumbnail(path string)` | Base64 JPEG thumbnail |
+| `App.GetCandidateThumbnail(path)` | `(a *App) GetCandidateThumbnail(path string)` | Data-URL thumbnail for Zone C hover-preview |
 | `App.ApplyGPS(targetPath, lat, lon)` | `(a *App) ApplyGPS(...)` | Write GPS to a single file |
 | `App.ApplyBatchGPS(matches)` | `(a *App) ApplyBatchGPS([]BatchMatch)` | Batch-apply an explicit list of accepted matches |
 | `App.UndoGPS(path)` | `(a *App) UndoGPS(path string)` | Restore a photo from its backup (`.bak` or `.bak.json`) |

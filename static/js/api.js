@@ -88,6 +88,12 @@ export async function getThumbnail(path) {
     return window.go.main.App.GetThumbnail(path);
 }
 
+// Get a small JPEG data URL for the hover-preview on candidate cards.
+// Returns "" for HEIC or on decode failure; the caller treats "" as "no preview".
+export async function getCandidateThumbnail(path) {
+    return window.go.main.App.GetCandidateThumbnail(path);
+}
+
 // Apply GPS coordinates to a single target photo.
 export async function applyGPS(targetPath, lat, lon) {
     return window.go.main.App.ApplyGPS(targetPath, lat, lon);

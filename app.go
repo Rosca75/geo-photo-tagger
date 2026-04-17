@@ -136,6 +136,22 @@ func (a *App) GetThumbnail(path string) string {
 	return thumb
 }
 
+// GetCandidateThumbnail returns a data URL for a small thumbnail of the
+// image at path, used by the hover-preview on Zone C candidate cards.
+// Reuses GenerateThumbnail so no new decode logic is introduced.
+// Returns "" on decode failure or unsupported format (HEIC) — the frontend
+// treats "" as "no preview available" rather than an error.
+func (a *App) GetCandidateThumbnail(path string) (string, error) {
+	b64, err := GenerateThumbnail(path, 64)
+	if err != nil {
+		return "", err
+	}
+	if b64 == "" {
+		return "", nil
+	}
+	return "data:image/jpeg;base64," + b64, nil
+}
+
 // GetScanStatus returns the current scan or match operation progress.
 // The frontend polls this during long-running operations to update the UI.
 func (a *App) GetScanStatus() ScanStatus {
