@@ -68,6 +68,13 @@ func (a *App) startup(ctx context.Context) {
 	// wails dev sessions are not flooded with one log line per photo.
 	// Set GPT_DEBUG_LOG=1 before launching wails dev to restore per-file timing.
 	setupLogger(os.Getenv("GPT_DEBUG_LOG") == "1")
+
+	// Load persisted user settings (currently: default timezone for EXIF
+	// DateTime parsing). Logged as a warning on failure — the app still
+	// functions using in-memory defaults if the disk read fails.
+	if err := initSettings(); err != nil {
+		slog.Warn("settings_init_failed", "error", err.Error())
+	}
 }
 
 // OpenFolderDialog opens the native OS folder picker dialog.

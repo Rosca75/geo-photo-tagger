@@ -530,3 +530,17 @@
     max-height: 32px;
     object-fit: contain;
 }
+
+/* ── Settings row (Default TZ dropdown) ──────────────────────────────── */
+.settings-row {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-xs);
+    font-size: 0.75rem;
+    color: var(--text-light);
+}
+.settings-label { white-space: nowrap; }
+#select-default-tz {
+    font-size: 0.8rem;
+    padding: 2px 4px;
+}

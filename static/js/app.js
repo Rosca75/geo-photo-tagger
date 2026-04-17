@@ -9,6 +9,7 @@ import { initReference } from './reference.js';
 import { initMatcher } from './matcher_ui.js';
 import { initFilters } from './filters.js';
 import { initActions } from './actions.js';
+import { initSettings } from './settings.js';
 
 // init wires up all UI modules after the DOM is ready.
 function init() {
@@ -24,6 +25,7 @@ function init() {
     initMatcher();
     initFilters();
     initActions();
+    initSettings();
     console.log('GeoPhotoTagger ready. State:', state);
 }
 

@@ -46,6 +46,19 @@
                         <input id="chk-ref-recursive" type="checkbox" checked>
                         <span>Include subfolders</span>
                     </label>
+                    <label class="settings-row" title="Timezone used to interpret photos without an OffsetTime EXIF tag (e.g. Pentax DSLRs)">
+                        <span class="settings-label">Default TZ:</span>
+                        <select id="select-default-tz">
+                            <option value="Local">Local (OS)</option>
+                            <option value="UTC">UTC</option>
+                            <option value="Europe/Luxembourg">Europe/Luxembourg</option>
+                            <option value="Europe/Paris">Europe/Paris</option>
+                            <option value="Europe/London">Europe/London</option>
+                            <option value="America/New_York">America/New_York</option>
+                            <option value="America/Los_Angeles">America/Los_Angeles</option>
+                            <option value="Asia/Tokyo">Asia/Tokyo</option>
+                        </select>
+                    </label>
                 </div>
                 <!-- Reference folders chip list -->
                 <div id="reference-list-row" class="topbar-row chip-row" style="display:none">
