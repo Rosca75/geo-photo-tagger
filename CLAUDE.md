@@ -73,54 +73,75 @@ instead of a thumbnail for HEIC reference images.
 
 ```
 geo-photo-tagger/
-├── main.go              Wails app entry point (wails.Run)
-├── app.go               App struct + ReverseGeocode bound method
-├── app_match.go         RunMatching / RunMatchingSingle bound methods
-├── scanner.go           Filesystem walk: scan target folder + reference folders
-├── exif_reader.go       EXIF extraction: GPS coords, timestamps, camera model
-├── exif_writer.go       GPS coordinate injection into target files (JPEG + DNG dispatch)
-├── dng_gps_writer.go    DNG GPS write — binary TIFF patch (append IFD at EOF)
-├── dng_gps_blob.go      Pure-function builder for the 114-byte GPS IFD blob
-├── matcher.go           Time-based GPS matching engine + scoring
-├── thumbnail.go         Thumbnail generation for JPG, PNG, DNG, ARW (not HEIC)
-├── gpx_parser.go        GPX/KML/CSV track file parsing
-├── types.go             Shared type definitions (no logic)
-├── logger.go            slog-based structured logging setup
-├── scanner_parallel.go  Parallel scan with worker pool
-├── app_write.go         GPS write/undo/batch Wails-bound methods
-├── exif_writer_helpers.go   copyFile helper for backup/restore
-├── wails.json           Wails config (name, version, author)
+├── main.go                   Wails app entry point (wails.Run)
+├── app.go                    App struct + ScanTargetFolder / ReverseGeocode / GetThumbnail / GetScanStatus
+├── app_match.go              RunMatching / RunMatchingSingle / GetMatchResults
+├── app_match_same.go         RunSameSourceMatching — module 3 (same-source matching)
+├── app_reference.go          AddReferenceFolder / GetReferenceFolders / RemoveReferenceFolder
+├── app_track.go              ImportGPSTrack / GetGPSTracks / RemoveGPSTrack
+├── app_write.go              ApplyGPS / ApplyBatchGPS / UndoGPS / ClearAllBackups
+├── scanner.go                Single-threaded target + reference filesystem walk
+├── scanner_parallel.go       Parallel target scan with worker pool (+ recursive flag)
+├── exif_reader.go            EXIF extraction: GPS coords, timestamps, camera model
+├── exif_writer.go            WriteGPS / UndoGPS dispatch + writeAndVerify (JPEG + DNG)
+├── exif_writer_jpeg.go       JPEG GPS writer (dsoprea pipeline) + decimal→DMS helper
+├── exif_writer_helpers.go    copyFile helper for backup/restore
+├── dng_gps_writer.go         DNG GPS write — binary TIFF patch (append IFD at EOF)
+├── dng_gps_blob.go           Pure-function builder for the 114-byte GPS IFD blob
+├── dng_gps_verify.go         Direct-binary verification of a newly-written DNG GPS IFD
+├── dng_backup.go             Lazy DNG backup via sidecar metadata (capture + load + sweep)
+├── dng_backup_undo.go        DNG undo + tamper detection (companion to dng_backup.go)
+├── dng_gps_writer_test.go    Benchmarks for the DNG GPS apply pipeline
+├── matcher.go                Time-based GPS matching engine + scoring
+├── thumbnail.go              Thumbnail generation for JPG, PNG, DNG, ARW (not HEIC)
+├── gpx_parser.go             GPX track file parser
+├── kml_parser.go             KML track file parser
+├── csv_parser.go             CSV track file parser
+├── types.go                  Shared type definitions (no logic)
+├── logger.go                 slog-based structured logging setup
+├── wails.json                Wails config (name, version, author)
 ├── go.mod / go.sum
-├── CLAUDE.md            This file — development guidelines
-├── BUILD-INSTRUCTIONS.md  Step-by-step implementation phases
+├── CLAUDE.md                 This file — development guidelines
 ├── README.md
 ├── LICENSE
 ├── .gitignore
+├── docs/                     Historical change-request + build-instruction documents
+│   ├── AUDIT-2026-04.md
+│   ├── BUILD-INSTRUCTIONS.md
+│   ├── CHANGE-REQUEST-2026-04.md
+│   ├── DNG-GPS-WRITE-PLAN.md
+│   └── UX-ENHANCEMENT-PLAN.md
 ├── .github/
 │   └── workflows/
-│       ├── ci.yml       Build verification on push/PR
-│       └── release.yml  Cross-platform binary release on tag push
-└── static/              ← active frontend (embedded by main.go via //go:embed all:static)
+│       ├── ci.yml            Build verification on push/PR
+│       └── release.yml       Cross-platform binary release on tag push
+└── static/                   ← active frontend (embedded by main.go via //go:embed all:static)
     ├── index.html
     ├── css/
-    │   ├── base.css       CSS variables, reset, typography
-    │   ├── layout.css     Grid layout
-    │   ├── table.css      Data table styles
-    │   └── components.css Buttons, badges, toast, dialogs
+    │   ├── base.css          CSS variables, reset, typography
+    │   ├── layout.css        Grid layout
+    │   ├── table.css         Data table styles
+    │   └── components.css    Buttons, badges, toast, dialogs, mini-map, radios
     └── js/
-        ├── app.js          Entry point — imports modules, wires init()
-        ├── state.js        Shared state object (single source of truth)
-        ├── api.js          All window.go.main.App.* calls (isolation layer)
-        ├── scan.js         Source-folder scanning, reset handler, match-stats updater
-        ├── reference.js    Reference-folder chip list + add/remove handlers
-        ├── track.js        GPS track import chip list + add/remove handlers
-        ├── matcher_ui.js   Match-all + single-match + candidate radio-selection
-        ├── detail_render.js Zone C HTML builders (kept small for the 150-line rule)
-        ├── table.js        Zone B data table with clickable sortable column headers
-        ├── helpers.js      escapeHtml, formatDate shared utilities
-        ├── preview.js      Thumbnail preview card (Zone C header)
-        ├── filters.js      Match result filtering (sort lives in table.js)
-        └── actions.js      GPS apply, batch apply, undo handlers
+        ├── app.js            Entry point — imports modules, wires init()
+        ├── state.js          Shared state object (single source of truth)
+        ├── api.js            All window.go.main.App.* calls (isolation layer)
+        ├── scan.js           Source-folder scanning, reset handler, match-stats updater
+        ├── reference.js      Reference-folder chip list + add/remove handlers
+        ├── track.js          GPS track import chip list + add/remove handlers
+        ├── matcher_ui.js     Match-all + single-match + Zone C panel wiring
+        ├── matcher_select.js Accept-best helper + Zone C candidate radio-selection
+        ├── matcher_slider.js Max-delta range slider (live label + commit-on-release)
+        ├── detail_render.js  Zone C HTML builders (kept small for the 150-line rule)
+        ├── geocode.js        Reverse-geocoding with in-memory cache + race-safe refresh
+        ├── map.js            Leaflet mini-map lazy loader + marker renderer (Zone C)
+        ├── table.js          Zone B table header/sort/select-all
+        ├── table_row.js      Zone B per-row rendering + selection helpers
+        ├── helpers.js        escapeHtml, formatDate shared utilities
+        ├── preview.js        Thumbnail preview card (Zone C header)
+        ├── filters.js        Match result filtering (sort lives in table.js)
+        ├── hover_thumbnail.js Floating 32x32 preview on Zone C candidate hover
+        └── actions.js        GPS apply, batch apply, undo handlers + confirm dialog
 ```
 
 ---
@@ -143,15 +164,19 @@ no `fetch()` calls. Instead:
 | JS call | Go method | Purpose |
 |---------|-----------|---------|
 | `App.OpenFolderDialog()` | `(a *App) OpenFolderDialog()` | Native OS folder picker |
-| `App.ScanTargetFolder(path)` | `(a *App) ScanTargetFolder(path string)` | Scan for photos without GPS |
-| `App.AddReferenceFolder(path)` | `(a *App) AddReferenceFolder(path string)` | Add GPS reference source |
+| `App.ScanTargetFolder(path, recursive)` | `(a *App) ScanTargetFolder(path string, recursive bool)` | Scan for photos without GPS (recursive toggle in phase 4) |
+| `App.AddReferenceFolder(path, recursive)` | `(a *App) AddReferenceFolder(path string, recursive bool)` | Add GPS reference source |
 | `App.ImportGPSTrack(path)` | `(a *App) ImportGPSTrack(path string)` | Load GPX/KML/CSV file |
 | `App.RunMatching(opts)` | `(a *App) RunMatching(opts MatchOptions)` | Execute GPS matching for all photos |
 | `App.RunMatchingSingle(path, opts)` | `(a *App) RunMatchingSingle(path string, opts MatchOptions)` | Match one photo only (Zone C button) |
+| `App.RunSameSourceMatching(opts)` | `(a *App) RunSameSourceMatching(opts MatchOptions)` | Module 3: match using in-folder geolocated photos as references |
 | `App.GetMatchResults()` | `(a *App) GetMatchResults()` | Poll matching progress |
 | `App.GetThumbnail(path)` | `(a *App) GetThumbnail(path string)` | Base64 JPEG thumbnail |
+| `App.GetCandidateThumbnail(path)` | `(a *App) GetCandidateThumbnail(path string)` | Data-URL thumbnail for Zone C hover-preview |
 | `App.ApplyGPS(targetPath, lat, lon)` | `(a *App) ApplyGPS(...)` | Write GPS to a single file |
-| `App.ApplyAllMatches()` | `(a *App) ApplyAllMatches()` | Batch-apply all accepted matches |
+| `App.ApplyBatchGPS(matches)` | `(a *App) ApplyBatchGPS([]BatchMatch)` | Batch-apply an explicit list of accepted matches |
+| `App.UndoGPS(path)` | `(a *App) UndoGPS(path string)` | Restore a photo from its backup (`.bak` or `.bak.json`) |
+| `App.ClearAllBackups()` | `(a *App) ClearAllBackups()` | Remove every `.bak` and `.bak.json` under the scanned folder |
 | `App.ReverseGeocode(lat, lon)` | `(a *App) ReverseGeocode(lat, lon float64)` | OSM Nominatim location lookup |
 | `App.GetScanStatus()` | `(a *App) GetScanStatus()` | Progress during scan/match |
 
@@ -185,11 +210,25 @@ if timeDelta >  60 min  → score = 0    (no match)
 
 ### User-configurable thresholds
 
-The UI exposes a **maximum time distance** filter with presets:
-* 10 minutes (strict)
-* 30 minutes (moderate — default)
-* 60 minutes (relaxed)
-* Custom value
+The UI exposes a **maximum time distance** filter as a range slider (5–360
+minutes, step 5). The live label updates while the user drags; the committed
+value (`state.matchThreshold`) only changes on release so downstream match
+stats don't recompute 60 times per second. Default: 30 minutes.
+
+### Matching modes
+
+The user picks one of three modes via a radio group in Zone A. Each mode runs
+the same `MatchPhotos` engine but draws reference data from a different pool:
+
+1. **External refs** (`matchMode = 'refs'`, default) — match against photos in
+   folders added via [GPS Ref]. Requires at least one reference folder.
+2. **GPS track** (`matchMode = 'track'`) — match against points from imported
+   GPX/KML/CSV files. Requires at least one imported track.
+3. **Same source** (`matchMode = 'same'`, phase 7) — re-scan the current source
+   folder for photos that already have GPS, and use them as references.
+   Honors the source scan's recursion choice via `App.lastSourceRecursive`.
+   Does not mutate `a.referencePhotos`, so the user can flip back to mode 1
+   without re-setting anything up.
 
 ### Match result structure
 
@@ -212,15 +251,20 @@ no other module touches `window.go` directly.
 
 ```javascript
 export const state = {
-    targetFolder: null,        // Path to folder with untagged photos
-    referenceFolders: [],      // Array of paths to GPS reference folders
-    gpsTrackFiles: [],         // Array of imported GPX/KML/CSV paths
-    targetPhotos: [],          // Scanned photos without GPS
-    matchResults: null,        // Matching results from RunMatching()
-    scanInProgress: false,     // Whether scan/match is running
-    matchThreshold: 30,        // Max time distance in minutes
-    selectedPhoto: null,       // Currently selected target photo
-    acceptedMatches: new Map() // targetPath → { lat, lon, score, source }
+    targetFolder: null,         // Path to folder with untagged photos
+    referenceFolders: [],       // Array of {path, photoCount} reference folders
+    gpsTrackFiles: [],          // Array of imported GPX/KML/CSV paths
+    targetPhotos: [],           // Scanned photos without GPS
+    matchResults: null,         // Matching results from RunMatching()
+    scanInProgress: false,      // Whether scan/match is running
+    matchThreshold: 30,         // Max time distance in minutes (slider, phase 4)
+    selectedPhoto: null,        // Currently selected target photo
+    acceptedMatches: new Map(), // targetPath → { lat, lon, score, source, sourcePath }
+    geocodeCache: new Map(),    // "lat5,lon5" → location string (phase 2)
+    mapEnabled: false,          // Leaflet mini-map visible (phase 5, lazy-loaded)
+    sourceRecursive: true,      // Source scan descends into subfolders (phase 4)
+    refRecursive: true,         // Reference scan descends into subfolders (phase 4)
+    matchMode: 'refs'           // 'refs' | 'track' | 'same' (phase 7)
 };
 ```
 
@@ -237,15 +281,17 @@ hidden until at least one item is added.
 │  ZONE A — Top Bar (3 logical groups)                                │
 │                                                                     │
 │  ── DATA SOURCES ───────────────────────────────────────────────    │
-│  [path...] [Source] [✕]  |  [GPS Ref] [Import Track]                │
+│  [path...] [Source] [✕] [☑ Include subfolders]                      │
+│  [GPS Ref] [Import Track] [☑ Include subfolders]                    │
 │  References: [chip] [chip]    GPS Tracks: [chip] [chip]             │
 │                                                                     │
 │  ── MATCHING ───────────────────────────────────────────────────    │
-│  [Search for GPS match] | Max delta: [10|30|60]  Scanning...        │
+│  (◉ External refs  ○ GPS track  ○ Same source)                      │
+│  [Search for GPS match] | Max delta: ⬤───── 30 min                  │
 │  234 photos │ 156 matched │ 78 unmatched                            │
 │                                                                     │
 │  ── VIEW ───────────────────────────────────────────────────────    │
-│  Filter: [All|Matched|Unmatched]              [Apply All Accepted]  │
+│  Filter: [All|Matched|Unmatched]              [Apply GPS data]      │
 ├────────────────────────────────┬────────────────────────────────────┤
 │  ZONE B — Target Photos        │  ZONE C — Match Details            │
 │  (left panel, ~45% width)      │  (right panel, ~55% width)         │
@@ -313,8 +359,13 @@ css
 11. **Comment all Go code.** The owner is not a Go expert. Explain every non-obvious construct.
 12. **Test after every change.** Run `wails dev` and verify in the native window.
 13. **No CGo, no ImageMagick, no external binaries.** Pure Go only. This is a hard constraint.
-14. **HEIC = GPS data only.** Never attempt to decode HEIC pixels or generate HEIC thumbnails. Read EXIF GPS only.
+14. **HEIC = GPS data only.** Never attempt to decode HEIC pixels or generate HEIC thumbnails. Read EXIF GPS only. Any future preview/hover feature must short-circuit to "no preview" for HEIC files — do not add a placeholder round-trip.
 15. **Timestamps are sacred.** All time comparisons must account for timezone differences between devices. Normalize to UTC before comparing.
+16. **Respect the 150-line ceiling — split proactively.** When a file grows past 150 lines, split it before the commit lands. Do not let a file reach 220 lines and say "it's mostly comments." Comments count.
+17. **`api.js` is the exclusive call site for `window.go.main.App.*`.** Every new bound Go method gets a matching `api.js` wrapper in the same commit. No exceptions.
+18. **New frontend dependencies require CDN pinning.** If a phase introduces a frontend library (as Leaflet 1.9.4 was in phase 5), pin the exact version in the URL. No `latest`, no range specifiers.
+19. **Auto-fixable is not the same as silently-fixable.** Refactoring that goes beyond the instruction's prescribed scope belongs in a follow-up, not mixed into the same commit. If the instruction says "rename X to Y", do only that — don't also rename Z because it would look nicer.
+20. **Backup-safety code paths are no-touch except by explicit instruction.** `dng_backup.go`, `dng_backup_undo.go`, `dng_gps_verify.go`, `dng_gps_writer.go`, and the `WriteGPS` / `UndoGPS` / `ClearBackups` triplet in `exif_writer.go` may only be modified when a change request names them explicitly. Incidental changes to these files are rejected on review.
 
 ---
 
@@ -342,15 +393,57 @@ css
 
 Writing GPS data to photos is a **destructive operation**. Safety rules:
 
-1. **Always create a backup** before modifying any file. Copy original to `<filename>.bak` in the same directory.
-2. **Verify the write** by re-reading EXIF after write and confirming GPS matches expected values.
-3. **Never modify the original timestamp.** Only GPS fields are written.
-4. **Batch apply must be interruptible.** The user can cancel mid-batch.
-5. **Undo support:** Keep `.bak` files until the user explicitly clears them.
+1. **Always create a backup before modifying any file.** Two formats in use:
+   * **JPEG** — full file copy to `<path>.bak` (unchanged from early versions).
+   * **DNG** — lazy sidecar at `<path>.bak.json` containing the 4-byte
+     GPSInfoIFD pointer offset, the original pointer value, the pre-apply
+     file size, and a SHA-256 hash of the first 64 KB (`preApplyHashSize`).
+     Undo patches the pointer back and truncates the file to its original
+     size — no multi-MB copies. The sidecar schema is versioned
+     (`Version: 1`); bump it if the format changes.
+2. **Verify the write** by re-reading GPS after write and confirming coords
+   match within 0.001°. DNG uses the direct-binary fast path in
+   `dng_gps_verify.go`; JPEG uses the goexif round-trip.
+3. **Undo refuses on tamper.** `checkDNGTamper` hashes the first 64 KB again
+   at undo time and aborts with an explanatory error if another tool
+   (Lightroom, Bridge, …) edited the DNG between apply and undo. This
+   prevents silent corruption.
+4. **Orphan sidecars are swept at `ScanTargetFolder` time.** Any `.bak.json`
+   whose DNG no longer exists is deleted. Sidecars whose target is still
+   present stay intact — those represent legitimate pending-undo state that
+   must survive across restarts.
+5. **Never modify the original timestamp.** Only GPS fields are written.
+6. **Batch apply must be interruptible.** The user can cancel mid-batch.
+7. **Undo support:** Keep `.bak` + `.bak.json` files until the user explicitly
+   runs `ClearAllBackups` — which removes both.
 
 ---
 
-## 13. Linux Build Notes (for CI)
+## 13. Verification Workflow
+
+After any change, run (at minimum):
+
+```bash
+go vet ./...       # must be clean
+go test ./...      # must pass
+```
+
+For DNG write-path performance work, run the benchmarks from phase 3a:
+
+```bash
+go test -bench BenchmarkApplyGPS -benchmem -benchtime 10x ./...
+```
+
+The benchmark harness requires `samples/IMGP8411.DNG` (a Pentax K-1 DNG
+without GPS) — when absent, `b.Skipf` guards make each benchmark skip
+cleanly rather than fail. Drop a sample DNG into `samples/` to enable them.
+
+For UI or frontend changes, run `wails dev` and exercise the change in the
+native window. `GPT_DEBUG_LOG=1 wails dev` restores the per-file Debug
+logging that phase 1 gated behind an env var — useful for investigating
+scan performance without permanently flooding the logs.
+
+## 14. Linux Build Notes (for CI)
 
 Linux CI builds require the webkit2gtk-4.1 development library:
 

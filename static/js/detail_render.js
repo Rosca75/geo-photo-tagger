@@ -82,13 +82,14 @@ function buildCandidatesSection(photo, candidates, acc) {
             && Math.abs(acc.lat - c.gps.latitude) < 1e-6;
 
         html += `
-            <div class="detail-candidate${isSelected ? ' selected' : ''}"
+            <div class="detail-candidate candidate-hover-target${isSelected ? ' selected' : ''}"
                  data-path="${escapeHtml(photo.path)}"
                  data-lat="${c.gps.latitude}"
                  data-lon="${c.gps.longitude}"
                  data-score="${c.score}"
                  data-source="${escapeHtml(c.source || '')}"
                  data-source-path="${escapeHtml(c.sourcePath || '')}"
+                 data-candidate-source-path="${escapeHtml(c.sourcePath || '')}"
                  title="Click to select this candidate as the GPS source">
                 <span class="candidate-radio">${isSelected ? '&#x25C9;' : '&#x25CB;'}</span>
                 <span class="badge ${scoreBadgeClass(c.score)}">${c.score}</span>

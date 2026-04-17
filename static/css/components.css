@@ -57,13 +57,6 @@
   font-size: 0.75rem;
 }
 
-/* Active state for threshold preset buttons */
-.threshold-btn.active {
-  background: var(--primary);
-  border-color: var(--primary);
-  color: #fff;
-}
-
 /* ── Folder path input ───────────────────────────────────────────────── */
 
 .folder-input {
@@ -285,7 +278,7 @@
 }
 
 /* ── Filter buttons active state ─────────────────────────────────────── */
-/* Same pattern as .threshold-btn.active — primary fill, white text */
+/* Primary fill with white text to indicate the active filter. */
 .filter-btn.active {
   background: var(--primary);
   border-color: var(--primary);
@@ -515,4 +508,25 @@
 .match-mode-group input[type="radio"] {
     margin: 0;
     cursor: pointer;
+}
+
+/* Hover-thumbnail preview — floating 32x32 image that follows the cursor
+   when the user hovers a candidate card in Zone C. Created lazily by
+   hover_thumbnail.js; attached directly to <body>. pointer-events:none so
+   it never steals the hover from the underlying card. */
+#hover-thumbnail {
+    position: fixed;
+    z-index: 9999;
+    pointer-events: none;
+    padding: 2px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+}
+#hover-thumbnail img {
+    display: block;
+    max-width: 32px;
+    max-height: 32px;
+    object-fit: contain;
 }
