@@ -148,6 +148,17 @@ func ReadHEICExif(path string) (*EXIFData, error) {
 // Keep ReadEXIF for detail views (Phase 5+) where richer metadata is needed.
 // Only use ReadEXIFForScan in the scan path where we check GPS presence.
 func ReadEXIFForScan(path string) (*EXIFData, error) {
+	// Fast scan path for DNG: bypass goexif entirely. The 512 KB
+	// LimitReader used below cannot reach GPS IFDs that Pentax (and
+	// similar cameras) append near end-of-file on large DNGs — see
+	// dng_scan_reader.go for the root-cause write-up. IMGP7911.DNG
+	// (GPS IFD at offset 0x2C4D84C, ~46 MB in) is the regression
+	// fixture for this code path.
+	ext := strings.ToLower(filepath.Ext(path))
+	if ext == ".dng" {
+		return readDNGScanFields(path)
+	}
+
 	f, err := os.Open(path)
 	if err != nil {
 		return nil, fmt.Errorf("opening %q: %w", path, err)
@@ -156,13 +167,13 @@ func ReadEXIFForScan(path string) (*EXIFData, error) {
 
 	// Choose read limit based on file format.
 	// JPEG: APP1 is capped at 64 KB by spec → 128 KB limit is safe.
-	// DNG/TIFF: embed JPEG previews (100-200 KB) that push EXIF IFDs further.
-	//   Real-world Pentax K-1 DNG: ExifIFD at 158 KB, GPSInfo at 158 KB.
-	//   512 KB covers even large embedded previews while staying far below
-	//   the full multi-MB raw data.
-	ext := strings.ToLower(filepath.Ext(path))
+	// TIFF-based formats (ARW, TIFF): embed JPEG previews (100-200 KB)
+	//   that push EXIF IFDs further. 512 KB covers even large embedded
+	//   previews while staying far below the full multi-MB raw data.
+	//   DNG is handled above via readDNGScanFields, which has no such
+	//   limit, so it does not appear in this branch.
 	readLimit := int64(128 * 1024) // 128 KB default (JPEG)
-	if ext == ".dng" || ext == ".arw" || ext == ".tiff" || ext == ".tif" {
+	if ext == ".arw" || ext == ".tiff" || ext == ".tif" {
 		readLimit = 512 * 1024 // 512 KB for TIFF-based formats
 	}
 	limited := io.LimitReader(f, readLimit)
