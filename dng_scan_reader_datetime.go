@@ -48,7 +48,81 @@ func trimASCII(b []byte) string {
 	return string(b)
 }
 
-// parseEXIFDateTime parses EXIF's "YYYY:MM:DD HH:MM:SS" format.
-func parseEXIFDateTime(s string) (time.Time, error) {
-	return time.Parse("2006:01:02 15:04:05", s)
+// parseEXIFDateTimeToUTC parses an EXIF "YYYY:MM:DD HH:MM:SS" timestamp and
+// returns a UTC-anchored time.Time.
+//
+// If offsetStr is non-empty and valid (e.g. "-05:00", "+01:00"), the offset
+// is applied directly. Otherwise the timestamp is interpreted in the
+// user-configured default timezone (see GetDefaultTimezone), which defaults
+// to the OS local timezone.
+//
+// This is the single canonical EXIF DateTime parser for the scan path.
+// Every scanned photo flows through here so matcher comparisons operate on
+// correctly-anchored UTC values.
+func parseEXIFDateTimeToUTC(dateTimeStr, offsetStr string) (time.Time, error) {
+	const layout = "2006:01:02 15:04:05"
+
+	if offsetStr != "" {
+		// Offset format is "+HH:MM" or "-HH:MM". time.Parse with a layout
+		// that includes "-07:00" handles both signs.
+		combined := dateTimeStr + " " + offsetStr
+		if t, err := time.Parse(layout+" -07:00", combined); err == nil {
+			return t.UTC(), nil
+		}
+		// Fall through to default-tz path if offset string is malformed.
+	}
+
+	loc := GetDefaultTimezone()
+	t, err := time.ParseInLocation(layout, dateTimeStr, loc)
+	if err != nil {
+		return time.Time{}, err
+	}
+	return t.UTC(), nil
+}
+
+// scanExifIFDForOffset seeks to the given Exif sub-IFD offset and walks its
+// entries looking only for OffsetTimeOriginal (0x9011). Returns "" if the
+// tag is absent or any structural error occurs — callers treat "" as
+// "no offset present" and fall back to the default timezone.
+//
+// Keeps the walk minimal (no GPS / DateTime collection) because this is a
+// second pass invoked only when IFD0 did not already contain the offset.
+func scanExifIFDForOffset(f *os.File, byteOrder binary.ByteOrder, ifdOffset int64) string {
+	if _, err := f.Seek(ifdOffset, io.SeekStart); err != nil {
+		return ""
+	}
+	var entryCount uint16
+	if err := binary.Read(f, byteOrder, &entryCount); err != nil {
+		return ""
+	}
+	const tagOffsetTimeOriginal = 0x9011
+	for i := uint16(0); i < entryCount; i++ {
+		var tag, typeID uint16
+		var count, value uint32
+		if err := binary.Read(f, byteOrder, &tag); err != nil {
+			return ""
+		}
+		if err := binary.Read(f, byteOrder, &typeID); err != nil {
+			return ""
+		}
+		if err := binary.Read(f, byteOrder, &count); err != nil {
+			return ""
+		}
+		if err := binary.Read(f, byteOrder, &value); err != nil {
+			return ""
+		}
+		if tag != tagOffsetTimeOriginal {
+			continue
+		}
+		current, _ := f.Seek(0, io.SeekCurrent)
+		s, readErr := readASCIITag(f, typeID, count, value, byteOrder)
+		if _, err := f.Seek(current, io.SeekStart); err != nil {
+			return ""
+		}
+		if readErr != nil {
+			return ""
+		}
+		return s
+	}
+	return ""
 }

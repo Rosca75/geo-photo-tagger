@@ -63,12 +63,15 @@ func ReadEXIF(path string) (*EXIFData, error) {
 	}
 
 	// --- Capture timestamp ---
-	// EXIF DateTimeOriginal stores local time without timezone information.
-	// The matching engine (Phase 4) handles timezone offsets.
-	t, err := x.DateTime()
-	if err == nil {
-		result.DateTimeOriginal = t
-		result.HasDateTime = true
+	// Timestamps must reach the matcher as UTC. If the EXIF carries an
+	// OffsetTimeOriginal tag (iPhone, modern Android), use it; otherwise
+	// interpret the naive DateTime in the user-configured default TZ.
+	dateTimeStr, offsetStr := extractDateTimeAndOffset(x)
+	if dateTimeStr != "" {
+		if t, pErr := parseEXIFDateTimeToUTC(dateTimeStr, offsetStr); pErr == nil {
+			result.DateTimeOriginal = t
+			result.HasDateTime = true
+		}
 	}
 
 	// --- Camera model ---
@@ -120,10 +123,12 @@ func ReadHEICExif(path string) (*EXIFData, error) {
 		result.Longitude = lon
 	}
 
-	t, err := x.DateTime()
-	if err == nil {
-		result.DateTimeOriginal = t
-		result.HasDateTime = true
+	dateTimeStr, offsetStr := extractDateTimeAndOffset(x)
+	if dateTimeStr != "" {
+		if t, pErr := parseEXIFDateTimeToUTC(dateTimeStr, offsetStr); pErr == nil {
+			result.DateTimeOriginal = t
+			result.HasDateTime = true
+		}
 	}
 
 	modelTag, err := x.Get(exif.Model)
@@ -209,10 +214,14 @@ func ReadEXIFForScan(path string) (*EXIFData, error) {
 	}
 
 	// Timestamp — needed later for time-based GPS matching.
-	t, err := x.DateTime()
-	if err == nil {
-		result.DateTimeOriginal = t
-		result.HasDateTime = true
+	// Anchor to UTC using OffsetTimeOriginal when present, else the
+	// user-configured default timezone. See parseEXIFDateTimeToUTC.
+	dateTimeStr, offsetStr := extractDateTimeAndOffset(x)
+	if dateTimeStr != "" {
+		if t, pErr := parseEXIFDateTimeToUTC(dateTimeStr, offsetStr); pErr == nil {
+			result.DateTimeOriginal = t
+			result.HasDateTime = true
+		}
 	}
 
 	// Camera model — single tag read, negligible cost.

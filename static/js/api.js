@@ -119,3 +119,15 @@ export async function clearAllBackups() {
 export async function getScanStatus() {
     return window.go.main.App.GetScanStatus();
 }
+
+// Fetch persisted user settings (currently only { defaultTimezone }).
+// Called once at app startup to seed state.defaultTimezone.
+export async function getSettings() {
+    return window.go.main.App.GetSettings();
+}
+
+// Persist the default timezone used to interpret EXIF DateTime for photos
+// that lack an OffsetTimeOriginal tag. Accepts an IANA name or "Local".
+export async function setDefaultTimezone(tz) {
+    return window.go.main.App.SetDefaultTimezone(tz);
+}

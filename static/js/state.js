@@ -58,5 +58,9 @@ export const state = {
     //   'track'  — imported GPX/KML/CSV (module 2)
     //   'same'   — photos inside the source folder with GPS (module 3)
     // Default 'refs' preserves pre-phase-7 behavior.
-    matchMode: 'refs'
+    matchMode: 'refs',
+
+    // Default timezone used to interpret EXIF DateTime for photos that lack
+    // an OffsetTimeOriginal tag (Pentax, older DSLRs). IANA name or "Local".
+    defaultTimezone: 'Local'
 };
