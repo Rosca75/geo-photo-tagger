@@ -16,7 +16,7 @@ import (
 	"fmt"
 	"image"
 	"image/jpeg"
-	_ "image/png"  // registers PNG decoder for image.Decode
+	_ "image/png" // registers PNG decoder for image.Decode
 	"os"
 	"path/filepath"
 	"strings"
