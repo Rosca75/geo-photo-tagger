@@ -46,12 +46,18 @@ func GenerateThumbnail(path string, maxSize int) (string, error) {
 	var img image.Image
 	var err error
 
-	// DNG/ARW: try the embedded JPEG preview stored in EXIF first.
-	// This avoids decoding the full multi-megabyte RAW file and is much faster.
-	if ext == ".dng" || ext == ".arw" {
+	// DNG: goexif fails on large Pentax-class DNGs (see dng_thumbnail_reader.go).
+	// Walk the TIFF IFDs directly to pull the embedded JPEG preview, and fall
+	// back to decodeImageFile (TIFF decoder) for small DNGs that lack one.
+	// ARW: goexif still works, so keep the existing path unchanged.
+	if ext == ".dng" {
+		img, err = loadDNGEmbeddedPreview(path)
+		if err != nil {
+			img, err = decodeImageFile(path)
+		}
+	} else if ext == ".arw" {
 		img, err = loadRawEmbeddedPreview(path)
 		if err != nil {
-			// No embedded preview — fall back to full TIFF decode
 			img, err = decodeImageFile(path)
 		}
 	} else {
