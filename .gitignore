@@ -32,8 +32,9 @@ vendor/
 # Samples files directory (pictures)
 samples/
 
-# Wails build output
-build/
+# Wails build output — ignore compiled binaries, keep packaging assets
+# (appicon.svg/png, windows/icon.ico, info.json, manifest, README).
+build/bin/
 
 # Backup files created by the app
 *.bak

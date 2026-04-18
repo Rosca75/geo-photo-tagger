@@ -99,7 +99,7 @@ func gpxPointToTrackPoint(p gpxPoint, src string) (GPSTrackPoint, error) {
 func parseTimestamp(s string) (time.Time, error) {
 	s = strings.TrimSpace(s)
 	layouts := []string{
-		time.RFC3339,            // "2006-01-02T15:04:05Z07:00" — GPX standard
+		time.RFC3339,           // "2006-01-02T15:04:05Z07:00" — GPX standard
 		"2006-01-02T15:04:05Z", // UTC with literal Z (subset of RFC 3339)
 		"2006-01-02T15:04:05",  // ISO 8601 no timezone (treated as UTC)
 		"2006-01-02 15:04:05",  // space-separated (common CSV export)

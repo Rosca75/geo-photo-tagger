@@ -117,6 +117,12 @@
                             title="Show only photos with GPS matches">Matched</button>
                     <button class="btn btn-sm btn-secondary filter-btn" data-filter="unmatched"
                             title="Show only photos without GPS matches">Unmatched</button>
+                    <button id="btn-clear-backups" class="btn btn-sm btn-secondary"
+                            title="Delete all .bak and .bak.json backup files for the current source folder.
+This removes the ability to Undo already-applied GPS writes."
+                            style="margin-left:var(--space-sm)">
+                        Clear backups
+                    </button>
                     <button id="btn-apply-all" class="btn btn-sm btn-primary" style="margin-left:auto"
                             title="Apply GPS data of the best candidate found">
                         Apply GPS data
