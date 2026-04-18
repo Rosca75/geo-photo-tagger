@@ -77,6 +77,25 @@ func (a *App) startup(ctx context.Context) {
 	}
 }
 
+// shutdown is called by Wails after the application window has closed.
+// Sweeps backup sidecars for the currently-scanned source folder so users
+// do not accumulate stale .bak / .bak.json files across sessions.
+// Errors are logged and swallowed — no UI is available at this point.
+func (a *App) shutdown(ctx context.Context) {
+	if a.targetFolder == "" {
+		return
+	}
+	n, err := ClearBackups(a.targetFolder)
+	if err != nil {
+		slog.Warn("shutdown_clear_backups_failed",
+			"folder", a.targetFolder, "error", err.Error())
+		return
+	}
+	if n > 0 {
+		slog.Info("shutdown_clear_backups", "folder", a.targetFolder, "count", n)
+	}
+}
+
 // OpenFolderDialog opens the native OS folder picker dialog.
 // Returns the selected path, or an empty string if the user cancels.
 func (a *App) OpenFolderDialog() (string, error) {
