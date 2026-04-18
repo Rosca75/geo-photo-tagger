@@ -540,7 +540,41 @@
     color: var(--text-light);
 }
 .settings-label { white-space: nowrap; }
+
+/* Match .btn-secondary visual language: bg, border, radius, hover transition.
+   appearance:none strips the native arrow; SVG chevron inlined as background. */
 #select-default-tz {
-    font-size: 0.8rem;
-    padding: 2px 4px;
+    appearance: none;
+    -webkit-appearance: none;
+    background-color: var(--bg);
+    /* Inline chevron — stroke is the literal value of --text-light (#6B6B6B).
+       CSS variables cannot be interpolated inside url(data:…); if the palette
+       changes, update the stroke colour here. */
+    background-image: url("data:image/svg+xml;charset=utf-8,\
+%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E\
+%3Cpath fill='none' stroke='%236B6B6B' stroke-width='1.5' stroke-linecap='round' \
+stroke-linejoin='round' d='M1 1l4 4 4-4'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right var(--space-sm) center;
+    background-size: 10px 6px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    color: var(--text);
+    font-family: var(--font);
+    font-size: var(--font-size-small);
+    font-weight: var(--font-weight-semi);
+    padding: var(--space-xs) calc(var(--space-md) + 12px) var(--space-xs) var(--space-sm);
+    cursor: pointer;
+    transition: all var(--transition);
+}
+
+#select-default-tz:hover {
+    border-color: var(--primary-light);
+    color: var(--primary);
+}
+
+#select-default-tz:focus {
+    outline: none;
+    border-color: var(--primary-light);
+    box-shadow: 0 0 0 2px rgba(74, 144, 226, 0.15);
 }
