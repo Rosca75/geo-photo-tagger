@@ -1,0 +1,18 @@
+<!-- build/appicon.svg — GeoPhotoTagger app icon
+     Square 1024x1024 canvas, transparent background, centred map-pin
+     with an inner camera-lens motif. Colours match CLAUDE.md §9
+     (--primary #1A3A5C, --primary-light #4A90E2). Rasterize to
+     build/appicon.png at 1024x1024 before running `wails build`. -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <!-- Map-pin outline -->
+  <path d="M512 128 C 352 128 224 256 224 416
+           C 224 608 512 896 512 896
+           C 512 896 800 608 800 416
+           C 800 256 672 128 512 128 Z"
+        fill="#1A3A5C"/>
+  <!-- Inner camera lens (aperture) -->
+  <circle cx="512" cy="400" r="140" fill="#FFFFFF"/>
+  <circle cx="512" cy="400" r="90"  fill="#4A90E2"/>
+  <!-- Aperture highlight (simplified) -->
+  <circle cx="512" cy="400" r="30" fill="#FFFFFF"/>
+</svg>
