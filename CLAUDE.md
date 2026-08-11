@@ -10,7 +10,7 @@
 **GeoPhotoTagger** is a Go-based GPS metadata editor for photos, packaged as a **native desktop
 application** using [Wails v2](https://wails.io). It opens a native Windows window (via WebView2),
 helps the user tag photos that lack GPS coordinates by cross-referencing them against geolocated
-images from phones/tablets or against imported GPS track data.
+images from phones/tablets or other geotagged images within the same folder.
 
 **Owner profile:**
 
@@ -78,7 +78,6 @@ geo-photo-tagger/
 ├── app_match.go              RunMatching / RunMatchingSingle / GetMatchResults
 ├── app_match_same.go         RunSameSourceMatching — module 3 (same-source matching)
 ├── app_reference.go          AddReferenceFolder / GetReferenceFolders / RemoveReferenceFolder
-├── app_track.go              ImportGPSTrack / GetGPSTracks / RemoveGPSTrack
 ├── app_write.go              ApplyGPS / ApplyBatchGPS / UndoGPS / ClearAllBackups
 ├── scanner.go                Single-threaded target + reference filesystem walk
 ├── scanner_parallel.go       Parallel target scan with worker pool (+ recursive flag)
@@ -94,9 +93,6 @@ geo-photo-tagger/
 ├── dng_gps_writer_test.go    Benchmarks for the DNG GPS apply pipeline
 ├── matcher.go                Time-based GPS matching engine + scoring
 ├── thumbnail.go              Thumbnail generation for JPG, PNG, DNG, ARW (not HEIC)
-├── gpx_parser.go             GPX track file parser
-├── kml_parser.go             KML track file parser
-├── csv_parser.go             CSV track file parser
 ├── types.go                  Shared type definitions (no logic)
 ├── logger.go                 slog-based structured logging setup
 ├── wails.json                Wails config (name, version, author)
@@ -166,7 +162,6 @@ no `fetch()` calls. Instead:
 | `App.OpenFolderDialog()` | `(a *App) OpenFolderDialog()` | Native OS folder picker |
 | `App.ScanTargetFolder(path, recursive)` | `(a *App) ScanTargetFolder(path string, recursive bool)` | Scan for photos without GPS (recursive toggle in phase 4) |
 | `App.AddReferenceFolder(path, recursive)` | `(a *App) AddReferenceFolder(path string, recursive bool)` | Add GPS reference source |
-| `App.ImportGPSTrack(path)` | `(a *App) ImportGPSTrack(path string)` | Load GPX/KML/CSV file |
 | `App.RunMatching(opts)` | `(a *App) RunMatching(opts MatchOptions)` | Execute GPS matching for all photos |
 | `App.RunMatchingSingle(path, opts)` | `(a *App) RunMatchingSingle(path string, opts MatchOptions)` | Match one photo only (Zone C button) |
 | `App.RunSameSourceMatching(opts)` | `(a *App) RunSameSourceMatching(opts MatchOptions)` | Module 3: match using in-folder geolocated photos as references |
@@ -194,7 +189,7 @@ no `fetch()` calls. Instead:
 ### Time-based scoring
 
 The core matching logic compares the `DateTimeOriginal` EXIF field of each target photo
-against the timestamps of all reference photos (and GPS track points).
+against the timestamps of all reference photos.
 
 **Scoring formula:**
 ```
@@ -217,14 +212,12 @@ stats don't recompute 60 times per second. Default: 30 minutes.
 
 ### Matching modes
 
-The user picks one of three modes via a radio group in Zone A. Each mode runs
+The user picks one of two modes via a radio group in Zone A. Each mode runs
 the same `MatchPhotos` engine but draws reference data from a different pool:
 
 1. **External refs** (`matchMode = 'refs'`, default) — match against photos in
-   folders added via [GPS Ref]. Requires at least one reference folder.
-2. **GPS track** (`matchMode = 'track'`) — match against points from imported
-   GPX/KML/CSV files. Requires at least one imported track.
-3. **Same source** (`matchMode = 'same'`, phase 7) — re-scan the current source
+   folders added via [GPS references]. Requires at least one reference folder.
+2. **Same source** (`matchMode = 'same'`) — re-scan the current source
    folder for photos that already have GPS, and use them as references.
    Honors the source scan's recursion choice via `App.lastSourceRecursive`.
    Does not mutate `a.referencePhotos`, so the user can flip back to mode 1
@@ -253,7 +246,6 @@ no other module touches `window.go` directly.
 export const state = {
     targetFolder: null,         // Path to folder with untagged photos
     referenceFolders: [],       // Array of {path, photoCount} reference folders
-    gpsTrackFiles: [],          // Array of imported GPX/KML/CSV paths
     targetPhotos: [],           // Scanned photos without GPS
     matchResults: null,         // Matching results from RunMatching()
     scanInProgress: false,      // Whether scan/match is running
@@ -264,7 +256,7 @@ export const state = {
     mapEnabled: false,          // Leaflet mini-map visible (phase 5, lazy-loaded)
     sourceRecursive: true,      // Source scan descends into subfolders (phase 4)
     refRecursive: true,         // Reference scan descends into subfolders (phase 4)
-    matchMode: 'refs'           // 'refs' | 'track' | 'same' (phase 7)
+    matchMode: 'refs'           // 'refs' | 'same'
 };
 ```
 
@@ -273,7 +265,7 @@ export const state = {
 ## 8. UI Layout — 3-Zone Interface
 
 The topbar is split into 3 clearly labelled groups that follow the workflow
-(Sources → Matching → View). Chip rows for references and GPS tracks are
+(Sources → Matching → View). Chip rows for references are
 hidden until at least one item is added.
 
 ```
@@ -282,11 +274,11 @@ hidden until at least one item is added.
 │                                                                     │
 │  ── DATA SOURCES ───────────────────────────────────────────────    │
 │  [path...] [Source] [✕] [☑ Include subfolders]                      │
-│  [GPS Ref] [Import Track] [☑ Include subfolders]                    │
-│  References: [chip] [chip]    GPS Tracks: [chip] [chip]             │
+│  [GPS references]                                                    │
+│  References: [chip] [chip]                                           │
 │                                                                     │
 │  ── MATCHING ───────────────────────────────────────────────────    │
-│  (◉ External refs  ○ GPS track  ○ Same source)                      │
+│  (◉ External refs  ○ Same source)                                    │
 │  [Search for GPS match] | Max delta: ⬤───── 30 min                  │
 │  234 photos │ 156 matched │ 78 unmatched                            │
 │                                                                     │
