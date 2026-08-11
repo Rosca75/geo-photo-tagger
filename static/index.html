@@ -39,9 +39,7 @@
                     </label>
                     <div class="btn-separator"></div>
                     <button id="btn-add-reference" class="btn btn-secondary"
-                            title="Add a folder of geolocated reference photos">GPS Ref</button>
-                    <button id="btn-import-track" class="btn btn-secondary"
-                            title="Import a GPX, KML, or CSV GPS track file">Import Track</button>
+                            title="Add a folder of geolocated reference photos">GPS references</button>
                     <label class="subfolder-toggle" title="Include photos in subfolders when adding a reference folder">
                         <input id="chk-ref-recursive" type="checkbox" checked>
                         <span>Include subfolders</span>
@@ -65,11 +63,6 @@
                     <span class="label-small">References:</span>
                     <div id="reference-list" class="chip-list"></div>
                 </div>
-                <!-- GPS track files chip list -->
-                <div id="track-list-row" class="topbar-row chip-row" style="display:none">
-                    <span class="label-small">GPS Tracks:</span>
-                    <div id="track-list" class="chip-list"></div>
-                </div>
             </div>
 
             <!-- GROUP 2: Matching — run match + threshold + stats summary -->
@@ -80,10 +73,6 @@
                         <label title="Match against external reference folders (module 1)">
                             <input type="radio" name="match-mode" value="refs" checked>
                             <span>External refs</span>
-                        </label>
-                        <label title="Match against an imported GPS track file (module 2)">
-                            <input type="radio" name="match-mode" value="track">
-                            <span>GPS track</span>
                         </label>
                         <label title="Match against other photos in the same source folder (module 3)">
                             <input type="radio" name="match-mode" value="same">
