@@ -9,8 +9,8 @@ package main
 
 import "fmt"
 
-// RunMatching executes the GPS matching engine against all loaded target photos,
-// reference photos, and GPS track points using the given options.
+// RunMatching executes the GPS matching engine against all loaded target photos
+// and reference photos using the given options.
 // Stores results in app state and returns them directly so the frontend can
 // render them without a separate GetMatchResults call.
 //
@@ -23,8 +23,8 @@ func (a *App) RunMatching(opts MatchOptions) ([]MatchResult, error) {
 		return []MatchResult{}, nil
 	}
 	// Require at least one source of GPS data.
-	if len(a.referencePhotos) == 0 && len(a.gpsTrackPoints) == 0 {
-		return nil, fmt.Errorf("no GPS sources loaded — add a reference folder or import a GPS track first")
+	if len(a.referencePhotos) == 0 {
+		return nil, fmt.Errorf("no GPS sources loaded — add a reference folder or use Same source matching")
 	}
 
 	a.scanStatus = ScanStatus{
@@ -35,7 +35,7 @@ func (a *App) RunMatching(opts MatchOptions) ([]MatchResult, error) {
 	}
 
 	// Call the engine from matcher.go.
-	results := MatchPhotos(a.targetPhotos, a.referencePhotos, a.gpsTrackPoints, opts)
+	results := MatchPhotos(a.targetPhotos, a.referencePhotos, opts)
 
 	// Build a path→result lookup so we can update targetPhotos in O(1) per photo.
 	byPath := make(map[string]*MatchResult, len(results))
@@ -97,13 +97,13 @@ func (a *App) RunMatchingSingle(targetPath string, opts MatchOptions) (MatchResu
 	}
 
 	// Require at least one GPS source — the engine has nothing to match against otherwise.
-	if len(a.referencePhotos) == 0 && len(a.gpsTrackPoints) == 0 {
-		return MatchResult{}, fmt.Errorf("no GPS sources loaded — add a reference folder or import a GPS track first")
+	if len(a.referencePhotos) == 0 {
+		return MatchResult{}, fmt.Errorf("no GPS sources loaded — add a reference folder or use Same source matching")
 	}
 
 	// Call the matching engine with a single-element slice so we reuse the
 	// existing MatchPhotos implementation without duplication.
-	results := MatchPhotos([]TargetPhoto{*target}, a.referencePhotos, a.gpsTrackPoints, opts)
+	results := MatchPhotos([]TargetPhoto{*target}, a.referencePhotos, opts)
 	if len(results) == 0 {
 		return MatchResult{TargetPath: targetPath}, nil
 	}
