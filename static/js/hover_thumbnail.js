@@ -2,9 +2,9 @@
 // when the user hovers the filename / source thumbnail inside a candidate
 // card in Zone C.
 //
-// Supported: JPEG (and anything else the existing thumbnail.go pipeline
-// decodes — PNG, DNG, ARW). Unsupported (HEIC, GPS track points) is handled
-// by never attaching hover handlers — no error state, no placeholder.
+// Supported: JPEG, PNG, DNG, ARW, HEIC/HEIF (all decoded by the Go thumbnail
+// pipeline). GPS track points (empty path) are handled by never attaching
+// hover handlers — no error state, no placeholder.
 //
 // Thumbnails are cached in-memory by source path. One shared floating <div>
 // is appended to <body> on first use; per-card DOM allocation is avoided.
@@ -16,8 +16,7 @@ let hoverEl = null;
 let currentPath = null;
 
 // Extensions the existing Go thumbnail pipeline can decode.
-// HEIC/HEIF deliberately excluded — no pure-Go HEVC decoder (CLAUDE.md §2).
-const SUPPORTED_EXTS = ['.jpg', '.jpeg', '.png', '.dng', '.arw', '.tif', '.tiff'];
+const SUPPORTED_EXTS = ['.jpg', '.jpeg', '.png', '.dng', '.arw', '.tif', '.tiff', '.heic', '.heif'];
 
 // isSupported returns true if path has a format the hover preview can render.
 // Empty path (GPS track point candidates) returns false so attachHover no-ops.
@@ -72,7 +71,7 @@ async function loadThumbnail(path) {
 
 // attachHover wires mouseenter/mousemove/mouseleave on `target` to show a
 // floating thumbnail for `path`. No-op when the path is unsupported or empty
-// (GPS track points, HEIC candidates — the feature simply isn't there).
+// (GPS track point candidates — the feature simply isn't there).
 export function attachHover(target, path) {
     if (!target || !isSupported(path)) return;
 

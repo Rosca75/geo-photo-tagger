@@ -29,8 +29,8 @@ export function renderPreview(photo, containerEl) {
         if (img.src) {
             placeholder.replaceWith(img);
         } else {
-            // Empty result means HEIC or unsupported format
-            placeholder.textContent = '(HEIC \u2014 no preview)';
+            // Empty result means unsupported format or decode failure
+            placeholder.textContent = '(no preview)';
         }
     });
 

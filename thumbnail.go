@@ -8,7 +8,7 @@ package main
 //   - PNG      — stdlib image/png decoder (registered via blank import)
 //   - DNG      — embedded JPEG preview via goexif, falls back to TIFF decode
 //   - ARW      — same as DNG (Sony RAW is TIFF-based)
-//   - HEIC     — returns "" (no pure-Go HEVC decoder; frontend shows placeholder)
+//   - HEIC     — WASM-based libheif decoder via heic_thumbnail.go
 
 import (
 	"bytes"
@@ -37,10 +37,10 @@ func GenerateThumbnail(path string, maxSize int) (string, error) {
 
 	ext := strings.ToLower(filepath.Ext(path))
 
-	// HEIC/HEIF: no pure-Go pixel decoder available without CGo. Per CLAUDE.md
-	// hard constraint #1, we return empty string and let the frontend show an icon.
+	// HEIC/HEIF: delegate to the WASM-based decoder in heic_thumbnail.go.
+	// Returns "" on failure so the frontend can show a fallback placeholder.
 	if ext == ".heic" || ext == ".heif" {
-		return "", nil
+		return generateHEICThumbnail(path, maxSize)
 	}
 
 	var img image.Image
