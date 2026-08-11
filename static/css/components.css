@@ -510,8 +510,8 @@
     cursor: pointer;
 }
 
-/* Hover-thumbnail preview — floating 32x32 image that follows the cursor
-   when the user hovers a candidate card in Zone C. Created lazily by
+/* Hover-thumbnail preview — floating image (up to 200px) that follows the
+   cursor when the user hovers a candidate card in Zone C. Created lazily by
    hover_thumbnail.js; attached directly to <body>. pointer-events:none so
    it never steals the hover from the underlying card. */
 #hover-thumbnail {
@@ -526,8 +526,8 @@
 }
 #hover-thumbnail img {
     display: block;
-    max-width: 32px;
-    max-height: 32px;
+    max-width: 200px;
+    max-height: 200px;
     object-fit: contain;
 }
 

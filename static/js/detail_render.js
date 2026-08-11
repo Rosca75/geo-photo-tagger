@@ -95,7 +95,7 @@ function buildCandidatesSection(photo, candidates, acc) {
                 <span class="badge ${scoreBadgeClass(c.score)}">${c.score}</span>
                 <span class="detail-source">${escapeHtml(c.sourceFilename)}</span>
                 <span class="muted">${c.timeDeltaFormatted}</span>
-                <span class="muted" style="font-size:0.75rem">${c.source === 'track' ? 'track' : 'photo'}</span>
+                <span class="muted" style="font-size:0.75rem">photo</span>
                 ${c.isInterpolated ? '<span class="chip-format" style="margin-left:4px">interpolated</span>' : ''}
             </div>`;
     });

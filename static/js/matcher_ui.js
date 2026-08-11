@@ -37,7 +37,7 @@ export function initMatcher() {
 }
 
 // handleMatchAllClick runs the full GPS matching engine and refreshes Zone B/C.
-// Routes to the correct engine based on state.matchMode ('refs' / 'track' / 'same').
+// Routes to the correct engine based on state.matchMode ('refs' / 'same').
 async function handleMatchAllClick() {
     if (state.targetPhotos.length === 0) { showZoneMessage('Scan a source folder first.'); return; }
 

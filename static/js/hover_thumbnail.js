@@ -1,10 +1,10 @@
-// hover_thumbnail.js — Floating 32x32 thumbnail preview next to the cursor
+// hover_thumbnail.js — Floating preview (up to 200px) next to the cursor
 // when the user hovers the filename / source thumbnail inside a candidate
 // card in Zone C.
 //
 // Supported: JPEG, PNG, DNG, ARW, HEIC/HEIF (all decoded by the Go thumbnail
-// pipeline). GPS track points (empty path) are handled by never attaching
-// hover handlers — no error state, no placeholder.
+// pipeline). Candidates with an empty source path are handled by never
+// attaching hover handlers — no error state, no placeholder.
 //
 // Thumbnails are cached in-memory by source path. One shared floating <div>
 // is appended to <body> on first use; per-card DOM allocation is avoided.
@@ -19,7 +19,7 @@ let currentPath = null;
 const SUPPORTED_EXTS = ['.jpg', '.jpeg', '.png', '.dng', '.arw', '.tif', '.tiff', '.heic', '.heif'];
 
 // isSupported returns true if path has a format the hover preview can render.
-// Empty path (GPS track point candidates) returns false so attachHover no-ops.
+// Empty path (candidates with no source file) returns false so attachHover no-ops.
 export function isSupported(path) {
     if (!path) return false;
     const lower = path.toLowerCase();
@@ -41,7 +41,7 @@ function ensureHoverEl() {
 function showAt(clientX, clientY) {
     const el = ensureHoverEl();
     const OFFSET = 16;
-    const SIZE = 48;  // approx bounding box incl. padding/border
+    const SIZE = 220;  // approx bounding box incl. padding/border (enlarged preview)
     const x = Math.min(clientX + OFFSET, window.innerWidth - SIZE);
     const y = Math.min(clientY + OFFSET, window.innerHeight - SIZE);
     el.style.left = `${x}px`;
@@ -71,7 +71,7 @@ async function loadThumbnail(path) {
 
 // attachHover wires mouseenter/mousemove/mouseleave on `target` to show a
 // floating thumbnail for `path`. No-op when the path is unsupported or empty
-// (GPS track point candidates — the feature simply isn't there).
+// (candidates with no source file — the feature simply isn't there).
 export function attachHover(target, path) {
     if (!target || !isSupported(path)) return;
 
