@@ -76,19 +76,6 @@ type GPSCoord struct {
 	Longitude float64 `json:"longitude"`
 }
 
-// GPSTrackPoint represents a single point from a GPX, KML, or CSV track file.
-// Track files provide a continuous GPS trail for interpolation.
-type GPSTrackPoint struct {
-	// Time is the UTC timestamp of this track point.
-	Time time.Time `json:"time"`
-
-	// GPS holds the coordinates at this point in the track.
-	GPS GPSCoord `json:"gps"`
-
-	// SourceFile is the track file this point came from.
-	SourceFile string `json:"sourceFile"`
-}
-
 // MatchOptions configures the GPS matching engine.
 // These are set by the user in the UI before running a match.
 type MatchOptions struct {
@@ -113,13 +100,13 @@ type MatchResult struct {
 }
 
 // MatchCandidate represents one potential GPS source for a target photo.
-// It could be a reference photo or an interpolated track point.
+// It comes from a reference photo.
 type MatchCandidate struct {
 	// Source indicates where this GPS data came from.
-	// Either "photo" (from a reference photo) or "track" (from a GPS track file).
+	// Currently always "photo" (from a reference photo).
 	Source string `json:"source"`
 
-	// SourcePath is the reference photo path or track file path.
+	// SourcePath is the reference photo path.
 	SourcePath string `json:"sourcePath"`
 
 	// SourceFilename is the base name of the source, for display.
@@ -215,20 +202,4 @@ type DateRange struct {
 // IsZero returns true if no range was specified, meaning all files should be scanned.
 func (dr DateRange) IsZero() bool {
 	return dr.Start.IsZero() && dr.End.IsZero()
-}
-
-// GPSTrackFile describes a single imported GPS track file.
-// Returned by ImportGPSTrack and GetGPSTracks so the frontend can list what was loaded.
-type GPSTrackFile struct {
-	// Path is the absolute filesystem path to the track file.
-	Path string `json:"path"`
-
-	// Filename is just the base name (e.g. "hike.gpx") for display in the UI.
-	Filename string `json:"filename"`
-
-	// PointCount is the number of valid GPS track points parsed from the file.
-	PointCount int `json:"pointCount"`
-
-	// Format is the lowercase extension without the dot: "gpx", "kml", or "csv".
-	Format string `json:"format"`
 }

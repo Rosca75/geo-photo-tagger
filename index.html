@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GeoPhotoTagger</title>
+    <!-- Inter font — same CDN import as dedup-photos -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <!-- Feather Icons — same icon library as dedup-photos -->
+    <script src="https://unpkg.com/feather-icons"></script>
+    <link rel="stylesheet" href="/css/base.css">
+    <link rel="stylesheet" href="/css/layout.css">
+    <link rel="stylesheet" href="/css/table.css">
+    <link rel="stylesheet" href="/css/components.css">
+</head>
+<body>
+    <div class="app-layout">
+
+        <!-- ZONE A — Top Bar (redesigned: 3 logical groups) -->
+        <header class="topbar">
+
+            <!-- GROUP 1: Data Sources — folder selection + GPS reference management -->
+            <div class="topbar-group" id="group-sources">
+                <div class="group-label">Data Sources</div>
+                <div class="topbar-row">
+                    <span class="app-title">GeoPhotoTagger</span>
+                    <input id="target-folder-path" class="folder-input"
+                           type="text" placeholder="No source folder selected..." readonly>
+                    <button id="btn-browse" class="btn btn-primary"
+                            title="Select folder containing photos without GPS data">Source</button>
+                    <button id="btn-reset-source" class="btn btn-sm btn-secondary btn-icon"
+                            title="Clear source folder and reset photo list"
+                            style="display:none">&#x2715;</button>
+                    <label class="subfolder-toggle" title="Include photos in subfolders when scanning">
+                        <input id="chk-source-recursive" type="checkbox" checked>
+                        <span>Include subfolders</span>
+                    </label>
+                    <div class="btn-separator"></div>
+                    <button id="btn-add-reference" class="btn btn-secondary"
+                            title="Add a folder of geolocated reference photos">GPS references</button>
+                    <label class="subfolder-toggle" title="Include photos in subfolders when adding a reference folder">
+                        <input id="chk-ref-recursive" type="checkbox" checked>
+                        <span>Include subfolders</span>
+                    </label>
+                    <label class="settings-row" title="Timezone used to interpret photos without an OffsetTime EXIF tag (e.g. Pentax DSLRs)">
+                        <span class="settings-label">Default TZ:</span>
+                        <select id="select-default-tz">
+                            <option value="Local">Local (OS)</option>
+                            <option value="UTC">UTC</option>
+                            <option value="Europe/Luxembourg">Europe/Luxembourg</option>
+                            <option value="Europe/Paris">Europe/Paris</option>
+                            <option value="Europe/London">Europe/London</option>
+                            <option value="America/New_York">America/New_York</option>
+                            <option value="America/Los_Angeles">America/Los_Angeles</option>
+                            <option value="Asia/Tokyo">Asia/Tokyo</option>
+                        </select>
+                    </label>
+                </div>
+                <!-- Reference folders chip list -->
+                <div id="reference-list-row" class="topbar-row chip-row" style="display:none">
+                    <span class="label-small">References:</span>
+                    <div id="reference-list" class="chip-list"></div>
+                </div>
+            </div>
+
+            <!-- GROUP 2: Matching — run match + threshold + stats summary -->
+            <div class="topbar-group" id="group-matching">
+                <div class="group-label">Matching</div>
+                <div class="topbar-row">
+                    <div class="match-mode-group" role="radiogroup" aria-label="Match source">
+                        <label title="Match against external reference folders">
+                            <input type="radio" name="match-mode" value="refs" checked>
+                            <span>External refs</span>
+                        </label>
+                        <label title="Match against other photos in the same source folder">
+                            <input type="radio" name="match-mode" value="same">
+                            <span>Same source</span>
+                        </label>
+                    </div>
+                    <div class="btn-separator"></div>
+                    <button id="btn-match-all" class="btn btn-accent"
+                            title="Search for GPS matches for all photos without GPS data">Search for GPS match</button>
+                    <div class="btn-separator"></div>
+                    <label class="delta-slider-label" for="delta-slider">Max delta:</label>
+                    <input id="delta-slider" class="delta-slider" type="range"
+                           min="5" max="720" step="5" value="30"
+                           title="Maximum time difference between a photo and a GPS source for a match to be considered">
+                    <span id="delta-slider-value" class="delta-slider-value">30 min</span>
+                    <span id="scan-indicator" class="scan-indicator hidden">Scanning&#8230;</span>
+                </div>
+                <div class="topbar-row">
+                    <span id="match-stats" class="match-stats muted">No scan results yet</span>
+                </div>
+            </div>
+
+            <!-- GROUP 3: View Controls — filter + batch action -->
+            <div class="topbar-group" id="group-view">
+                <div class="group-label">View</div>
+                <div class="topbar-row">
+                    <span class="label-small">Filter:</span>
+                    <button class="btn btn-sm btn-secondary filter-btn active" data-filter="all"
+                            title="Show all scanned photos">All</button>
+                    <button class="btn btn-sm btn-secondary filter-btn" data-filter="matched"
+                            title="Show only photos with GPS matches">Matched</button>
+                    <button class="btn btn-sm btn-secondary filter-btn" data-filter="unmatched"
+                            title="Show only photos without GPS matches">Unmatched</button>
+                    <button id="btn-clear-backups" class="btn btn-sm btn-secondary"
+                            title="Delete all .bak and .bak.json backup files for the current source folder.
+This removes the ability to Undo already-applied GPS writes."
+                            style="margin-left:var(--space-sm)">
+                        Clear backups
+                    </button>
+                    <button id="btn-apply-all" class="btn btn-sm btn-primary" style="margin-left:auto"
+                            title="Apply GPS data of the best candidate found">
+                        Apply GPS data
+                    </button>
+                </div>
+            </div>
+
+        </header>
+
+        <!-- ZONE B — Target Photos (left panel ~45%) -->
+        <main class="target-panel">
+            <div id="target-table-container">
+                <p class="muted panel-placeholder">Browse to a folder to scan for photos without GPS coordinates.</p>
+            </div>
+        </main>
+
+        <!-- Resize handle — CSS-only visual separator; JS drag is Phase 9 -->
+        <div class="panel-resize-handle-h" id="resize-handle"></div>
+
+        <!-- ZONE C — Match Details (right panel ~55%) -->
+        <aside class="match-panel">
+            <p class="muted panel-placeholder">Select a photo from the list to see match details.</p>
+        </aside>
+
+        <!-- Status Bar -->
+        <footer class="statusbar">
+            <span id="status-bar-text">Ready &#8212; select a target folder to begin</span>
+        </footer>
+
+    </div>
+    <script type="module" src="/js/app.js"></script>
+</body>
+</html>

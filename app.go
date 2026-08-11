@@ -32,13 +32,6 @@ type App struct {
 	// referencePhotos accumulates geolocated photos from all reference folders.
 	referencePhotos []ReferencePhoto
 
-	// gpsTrackPoints holds all track points accumulated from every imported file.
-	gpsTrackPoints []GPSTrackPoint
-
-	// gpsTrackFiles holds one descriptor per imported track file (path, point count).
-	// Used by GetGPSTracks() so the frontend can list what has been imported.
-	gpsTrackFiles []GPSTrackFile
-
 	// referenceFolderList tracks folders added via AddReferenceFolder.
 	// Each entry holds the path and number of geolocated photos found.
 	referenceFolderList []ReferenceFolderInfo

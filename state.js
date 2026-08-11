@@ -49,6 +49,7 @@ export const state = {
 
     // Which source feeds the next match run:
     //   'refs'   — external reference folders (module 1)
+    //   'track'  — imported GPX/KML/CSV (module 2)
     //   'same'   — photos inside the source folder with GPS (module 3)
     // Default 'refs' preserves pre-phase-7 behavior.
     matchMode: 'refs',

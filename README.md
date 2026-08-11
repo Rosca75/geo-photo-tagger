@@ -3,7 +3,7 @@
 [![CI](https://github.com/Rosca75/geo-photo-tagger/actions/workflows/ci.yml/badge.svg)](https://github.com/Rosca75/geo-photo-tagger/actions/workflows/ci.yml)
 [![Latest Release](https://img.shields.io/github/v/release/Rosca75/geo-photo-tagger)](https://github.com/Rosca75/geo-photo-tagger/releases/latest)
 
-A desktop application to add GPS coordinates to photos that lack geolocation data, by cross-referencing timestamps with geolocated photos from phones/tablets or GPS track files.
+A desktop application to add GPS coordinates to photos that lack geolocation data, by cross-referencing timestamps with geolocated photos from phones/tablets or other geotagged images within the same folder.
 
 ## The Problem
 
@@ -15,8 +15,8 @@ GeoPhotoTagger matches camera photos to phone photos by timestamp. If a phone ph
 
 ## Features
 
-* **Option 1 — Reference photos:** Add folders of geolocated photos from phones/tablets. The app matches by timestamp and copies GPS data.
-* **Option 2 — GPS tracks:** Import GPX, KML, or CSV track files. The app interpolates coordinates for each camera photo's timestamp.
+* **Reference photos:** Add folders of geolocated photos from phones/tablets. The app matches by timestamp and copies GPS data.
+* **Same-source matching:** Match photos within the same folder using already-geotagged images as references.
 * Time-based confidence scoring (closer timestamps = higher confidence)
 * Configurable time thresholds (10 / 30 / 60 minutes)
 * Thumbnail previews for JPG, PNG, DNG, ARW
@@ -32,14 +32,12 @@ GeoPhotoTagger matches camera photos to phone photos by timestamp. If a phone ph
 
 **Reference photos** (GPS source): JPG, PNG, DNG, ARW, HEIC
 
-**GPS tracks**: GPX, KML, CSV
-
 ## Quick Start
 
 1. Download the latest binary from the [Releases](https://github.com/Rosca75/geo-photo-tagger/releases/latest) page.
 2. Run GeoPhotoTagger.
 3. Browse to your camera photos folder (photos without GPS).
-4. Add one or more reference folders (phone/tablet photos with GPS) or import a GPS track file.
+4. Add one or more reference folders (phone/tablet photos with GPS).
 5. Click **Match All** — the app finds the best GPS match for each photo.
 6. Review matches, adjust if needed, then **Apply** to write GPS data.
 
@@ -66,7 +64,7 @@ wails build -tags webkit2_41 -platform linux/amd64
 ## How Matching Works
 
 1. **Scan** — target folder is scanned for photos without GPS data.
-2. **Reference collection** — reference folders and GPS tracks are indexed by timestamp.
+2. **Reference collection** — reference folders are indexed by timestamp.
 3. **Matching** — for each target photo, the app finds the closest reference by `DateTimeOriginal`.
 4. **Scoring** — matches are scored by time proximity (≤1 min = 100, ≤5 min = 90, ≤30 min = 50, etc.).
 5. **Review** — the user reviews matches in a side-by-side UI with thumbnails and confidence scores.
