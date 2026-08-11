@@ -9,17 +9,11 @@ export const state = {
     // Array of { path, photoCount } objects for added reference folders
     referenceFolders: [],
 
-    // Array of imported GPX/KML/CSV file paths
-    gpsTrackFiles: [],
-
     // Scanned target photos (array of TargetPhoto objects from Go)
     targetPhotos: [],
 
     // Reference photos collected from all reference folders
     referencePhotos: [],
-
-    // GPS track points from imported track files
-    gpsTrackPoints: [],
 
     // Matching results from RunMatching()
     matchResults: null,
@@ -55,7 +49,6 @@ export const state = {
 
     // Which source feeds the next match run:
     //   'refs'   — external reference folders (module 1)
-    //   'track'  — imported GPX/KML/CSV (module 2)
     //   'same'   — photos inside the source folder with GPS (module 3)
     // Default 'refs' preserves pre-phase-7 behavior.
     matchMode: 'refs',

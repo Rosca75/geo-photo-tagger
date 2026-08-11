@@ -4,7 +4,6 @@
 
 import { state } from './state.js';
 import { initScan } from './scan.js';
-import { initTrack } from './track.js';
 import { initReference } from './reference.js';
 import { initMatcher } from './matcher_ui.js';
 import { initFilters } from './filters.js';
@@ -20,7 +19,6 @@ function init() {
     }
 
     initScan();
-    initTrack();
     initReference();
     initMatcher();
     initFilters();

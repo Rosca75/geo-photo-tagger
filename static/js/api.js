@@ -10,12 +10,6 @@ export async function openFolderDialog() {
     return window.go.main.App.OpenFolderDialog();
 }
 
-// Open the native OS file picker dialog, filtered to GPS track formats (.gpx, .kml, .csv).
-// Returns the selected file path, or empty string if cancelled.
-export async function openFileDialog() {
-    return window.go.main.App.OpenFileDialog();
-}
-
 // Scan the target folder for photos without GPS data.
 // recursive: true to descend into subfolders (pre-phase-4 default behavior).
 export async function scanTargetFolder(path, recursive) {
@@ -36,22 +30,6 @@ export async function getReferenceFolders() {
 // Remove a reference folder and its photos from the pool.
 export async function removeReferenceFolder(path) {
     return window.go.main.App.RemoveReferenceFolder(path);
-}
-
-// Import a GPS track file (GPX, KML, or CSV).
-// Returns a GPSTrackFile object: { path, filename, pointCount, format }.
-export async function importGPSTrack(path) {
-    return window.go.main.App.ImportGPSTrack(path);
-}
-
-// Return the list of GPS track files currently imported in this session.
-export async function getGPSTracks() {
-    return window.go.main.App.GetGPSTracks();
-}
-
-// Remove a previously imported GPS track file and its points from the pool.
-export async function removeGPSTrack(path) {
-    return window.go.main.App.RemoveGPSTrack(path);
 }
 
 // Run the GPS matching engine with the given options.

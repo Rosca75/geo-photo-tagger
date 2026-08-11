@@ -24,7 +24,7 @@ export function initMatcher() {
 
     initDeltaSlider();
 
-    // Phase 7: match-mode radio (External refs / GPS track / Same source).
+    // Phase 7: match-mode radio (External refs / Same source).
     document.querySelectorAll('input[name="match-mode"]').forEach(r => {
         r.addEventListener('change', () => {
             if (r.checked) state.matchMode = r.value;
@@ -44,10 +44,7 @@ async function handleMatchAllClick() {
     // Client-side precondition checks per mode. These are UX, not security —
     // the Go side validates independently.
     if (state.matchMode === 'refs' && state.referenceFolders.length === 0) {
-        showZoneMessage('Add a reference folder (or switch to GPS track / Same source).'); return;
-    }
-    if (state.matchMode === 'track' && state.gpsTrackFiles.length === 0) {
-        showZoneMessage('Import a GPS track (or switch to External refs / Same source).'); return;
+        showZoneMessage('Add a reference folder (or switch to Same source).'); return;
     }
     // 'same' has no precondition beyond a scanned source folder.
 
