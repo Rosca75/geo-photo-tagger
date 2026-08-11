@@ -56,7 +56,7 @@ func (a *App) RunSameSourceMatching(opts MatchOptions) ([]MatchResult, error) {
 			len(a.targetPhotos), len(sameSourceRefs)),
 	}
 
-	results := MatchPhotos(a.targetPhotos, sameSourceRefs, nil, opts)
+	results := MatchPhotos(a.targetPhotos, sameSourceRefs, opts)
 
 	// Same propagation as RunMatching: update per-photo status and cache.
 	byPath := make(map[string]*MatchResult, len(results))
