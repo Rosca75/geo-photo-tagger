@@ -1,4 +1,4 @@
-﻿package main
+package main
 
 // heic_thumbnail.go — HEIC/HEIF thumbnail generation using WASM-based libheif.
 //
