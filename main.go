@@ -20,6 +20,10 @@ import (
 var assets embed.FS
 
 func main() {
+	// Pre-compile the WASM HEIC decoder so the first HEIC thumbnail request
+	// doesn't pay a 200-400 ms startup cost.
+	initHEIC()
+
 	// Create a new App instance. This struct holds all application state
 	// and its public methods become callable from JavaScript.
 	app := NewApp()
