@@ -20,8 +20,10 @@ import (
 var assets embed.FS
 
 func main() {
-	// Pre-compile the WASM HEIC decoder so the first HEIC thumbnail request
-	// doesn't pay a 200-400 ms startup cost.
+	// Configure the HEIC decoder and kick off a background pre-warm so the
+	// first HEIC thumbnail request doesn't pay the one-time ~200-400 ms WASM
+	// compile (the actual compile is forced off the critical path in a
+	// goroutine — see prewarmHEIC).
 	initHEIC()
 
 	// Create a new App instance. This struct holds all application state

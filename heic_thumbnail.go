@@ -27,20 +27,43 @@ import (
 // back to a full read.
 const heicHeaderReadSize = 192 * 1024
 
-// initHEIC configures the HEIC decoder at startup.
-// Calling this before the first thumbnail request pre-compiles the WASM
-// module, avoiding a 200-400 ms delay on the first HEIC decode.
-// If a dynamic libheif is found but its version is below 1.18, WASM mode
-// is forced for full compatibility with HDR/tmap-brand HEICs (iPhone 12+).
+// initHEIC configures the HEIC decoder at startup and kicks off a background
+// pre-warm so the first *user-triggered* thumbnail doesn't pay the one-time
+// ~200-400 ms WASM compile.
+//
+// If a dynamic libheif is found but its version is below 1.18, WASM mode is
+// forced for full compatibility with HDR/tmap-brand HEICs (iPhone 12+).
+//
+// Important: simply configuring the decoder does NOT compile the WASM module —
+// the underlying fork compiles lazily (sync.OnceFunc) on the first real decode
+// call. To move that cost off the critical path we call prewarmHEIC, which
+// forces the compile in a goroutine at startup.
 func initHEIC() {
 	if heic.Dynamic() != nil {
-		// No dynamic libheif available; the package will use WASM automatically.
+		// A dynamic libheif is available; no WASM compile to pre-warm.
 		return
 	}
 	if !heicDynamicVersionAtLeast(1, 18) {
 		heic.ForceWasmMode = true
 		log.Println("[heic] Dynamic libheif < 1.18; switching to WASM decoder")
 	}
+	prewarmHEIC()
+}
+
+// prewarmHEIC forces the WASM libheif module to compile ahead of the first user
+// request. It runs in a background goroutine so app startup is not blocked.
+//
+// The trick: the fork's decodeWASM path runs its one-time initialize() (which
+// calls CompileModule — the expensive step) at the very start of the call,
+// before it reads any pixels. So a DecodeThumbnail on a tiny throwaway buffer
+// triggers the compile even though the decode itself returns an error. We
+// deliberately ignore that error.
+func prewarmHEIC() {
+	go func() {
+		// A few bytes are enough — the decode fails, but the WASM compile that
+		// runs first is exactly what we want warmed.
+		_, _ = heic.DecodeThumbnail(bytes.NewReader([]byte{0, 0, 0, 0}))
+	}()
 }
 
 // readHEICHeader reads up to heicHeaderReadSize bytes from the file at path.

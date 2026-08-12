@@ -11,18 +11,13 @@ package main
 //   - HEIC     — WASM-based libheif decoder via heic_thumbnail.go
 
 import (
-	"bytes"
-	"encoding/base64"
 	"fmt"
 	"image"
-	"image/jpeg"
 	_ "image/png" // registers PNG decoder for image.Decode
 	"os"
 	"path/filepath"
 	"strings"
 
-	"github.com/rwcarlsen/goexif/exif"
-	"golang.org/x/image/draw"
 	_ "golang.org/x/image/tiff" // registers TIFF decoder for DNG/ARW
 )
 
@@ -35,12 +30,29 @@ func GenerateThumbnail(path string, maxSize int) (string, error) {
 		maxSize = 200
 	}
 
+	// Cache lookup. The key folds in the file's mtime and size, so an edit on
+	// disk (e.g. ApplyGPS rewriting EXIF) misses the stale entry and re-decodes.
+	// A hit skips the expensive decode entirely — the main win for HEIC, which
+	// runs a WASM decoder, and for any re-render/hover of the same file.
+	key, haveKey := thumbCacheKey2(path, maxSize)
+	if haveKey {
+		if v, ok := thumbCache.get(key); ok {
+			return v, nil
+		}
+	}
+
 	ext := strings.ToLower(filepath.Ext(path))
 
 	// HEIC/HEIF: delegate to the WASM-based decoder in heic_thumbnail.go.
 	// Returns "" on failure so the frontend can show a fallback placeholder.
 	if ext == ".heic" || ext == ".heif" {
-		return generateHEICThumbnail(path, maxSize)
+		b64, err := generateHEICThumbnail(path, maxSize)
+		// Cache both successes and empty-string misses so a HEIC that cannot be
+		// decoded is not retried on every subsequent hover.
+		if haveKey && err == nil {
+			thumbCache.put(key, b64)
+		}
+		return b64, err
 	}
 
 	var img image.Image
@@ -69,84 +81,24 @@ func GenerateThumbnail(path string, maxSize int) (string, error) {
 	}
 
 	scaled := scaleToFit(img, maxSize)
-	return encodeJPEGBase64(scaled)
+	b64, err := encodeJPEGBase64(scaled)
+	if err != nil {
+		return "", err
+	}
+	// Store the finished thumbnail so repeat requests are served from memory.
+	if haveKey {
+		thumbCache.put(key, b64)
+	}
+	return b64, nil
 }
 
-// loadRawEmbeddedPreview extracts the JPEG thumbnail that most RAW files
-// (DNG, ARW) embed in their EXIF data. This is a small, quick-to-read preview
-// rather than the full-resolution RAW image data.
-func loadRawEmbeddedPreview(path string) (image.Image, error) {
-	f, err := os.Open(path)
+// thumbCacheKey2 stats the file at path and builds the composite cache key.
+// Returns ok=false when the file cannot be stat'd (e.g. it was removed), in
+// which case the caller skips caching and just decodes directly.
+func thumbCacheKey2(path string, maxSize int) (string, bool) {
+	info, err := os.Stat(path)
 	if err != nil {
-		return nil, err
+		return "", false
 	}
-	defer f.Close()
-
-	x, err := exif.Decode(f)
-	if err != nil {
-		return nil, err
-	}
-
-	jpegBytes, err := x.JpegThumbnail()
-	if err != nil {
-		return nil, err
-	}
-
-	return jpeg.Decode(bytes.NewReader(jpegBytes))
-}
-
-// decodeImageFile opens and decodes an image file using Go's registered decoders.
-// Supports JPEG (image/jpeg), PNG (image/png), and TIFF (golang.org/x/image/tiff).
-// DNG and ARW are TIFF-based and handled by the TIFF decoder.
-func decodeImageFile(path string) (image.Image, error) {
-	f, err := os.Open(path)
-	if err != nil {
-		return nil, err
-	}
-	defer f.Close()
-
-	img, _, err := image.Decode(f)
-	return img, err
-}
-
-// scaleToFit resizes img so its longest dimension equals maxSize,
-// maintaining aspect ratio. Returns the original if it already fits.
-func scaleToFit(img image.Image, maxSize int) image.Image {
-	w := img.Bounds().Dx()
-	h := img.Bounds().Dy()
-
-	if w <= maxSize && h <= maxSize {
-		return img
-	}
-
-	// Calculate new dimensions preserving aspect ratio
-	var newW, newH int
-	if w > h {
-		newW = maxSize
-		newH = (h * maxSize) / w
-	} else {
-		newH = maxSize
-		newW = (w * maxSize) / h
-	}
-	if newW < 1 {
-		newW = 1
-	}
-	if newH < 1 {
-		newH = 1
-	}
-
-	// BiLinear scaling gives good quality for downscaling
-	dst := image.NewRGBA(image.Rect(0, 0, newW, newH))
-	draw.BiLinear.Scale(dst, dst.Bounds(), img, img.Bounds(), draw.Over, nil)
-	return dst
-}
-
-// encodeJPEGBase64 JPEG-encodes img and returns the bytes as a base64 string.
-// The result can be used directly in: img.src = "data:image/jpeg;base64," + result
-func encodeJPEGBase64(img image.Image) (string, error) {
-	var buf bytes.Buffer
-	if err := jpeg.Encode(&buf, img, &jpeg.Options{Quality: 85}); err != nil {
-		return "", fmt.Errorf("jpeg encode: %w", err)
-	}
-	return base64.StdEncoding.EncodeToString(buf.Bytes()), nil
+	return thumbCacheKey(path, maxSize, info.ModTime().UnixNano(), info.Size()), true
 }
