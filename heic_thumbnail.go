@@ -27,27 +27,44 @@ import (
 // back to a full read.
 const heicHeaderReadSize = 192 * 1024
 
-// initHEIC configures the HEIC decoder at startup and kicks off a background
-// pre-warm so the first *user-triggered* thumbnail doesn't pay the one-time
-// ~200-400 ms WASM compile.
+// initHEIC picks the HEIC decode backend at startup and pre-warms it when that
+// backend is WASM, so the first *user-triggered* thumbnail doesn't pay the
+// one-time ~230 ms WASM module compile.
 //
-// If a dynamic libheif is found but its version is below 1.18, WASM mode is
-// forced for full compatibility with HDR/tmap-brand HEICs (iPhone 12+).
+// Read heic.Dynamic() carefully — it returns *the error from opening the shared
+// library*, so a nil result means a dynamic libheif IS present and a non-nil
+// result means there is none. Getting this backwards skips the pre-warm on
+// exactly the platforms that need it.
 //
 // Important: simply configuring the decoder does NOT compile the WASM module —
 // the underlying fork compiles lazily (sync.OnceFunc) on the first real decode
 // call. To move that cost off the critical path we call prewarmHEIC, which
 // forces the compile in a goroutine at startup.
+//
+// Every branch below ends with the backend that will actually run having been
+// pre-warmed if, and only if, it is WASM.
 func initHEIC() {
 	if heic.Dynamic() != nil {
-		// A dynamic libheif is available; no WASM compile to pre-warm.
+		// No dynamic libheif — the normal case on Windows, the primary target
+		// platform. Every decode goes through WASM, so the one-time module
+		// compile must be pre-warmed.
+		prewarmHEIC()
 		return
 	}
+	// A dynamic libheif is present. Below 1.18 it both rejects the truncated
+	// 192 KB buffer the fast path depends on and mis-decodes HDR/tmap files
+	// (iPhone 12+), so force WASM — and pre-warm, because WASM is now the
+	// decode path.
 	if !heicDynamicVersionAtLeast(1, 18) {
 		heic.ForceWasmMode = true
 		log.Println("[heic] Dynamic libheif < 1.18; switching to WASM decoder")
+		prewarmHEIC()
+		return
 	}
-	prewarmHEIC()
+	// libheif >= 1.18: use it. Measured ~3x faster than WASM on the fast path,
+	// and it handles the truncated buffer. No WASM module will be compiled, so
+	// there is nothing to pre-warm.
+	log.Println("[heic] Using dynamic libheif >= 1.18")
 }
 
 // prewarmHEIC forces the WASM libheif module to compile ahead of the first user

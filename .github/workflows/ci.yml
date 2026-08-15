@@ -86,6 +86,13 @@ jobs:
       - name: Build Linux
         run: wails build -tags webkit2_41 -platform linux/amd64
 
+      # Cross-compile only — catches darwin-specific build-tag gaps (such as a
+      # missing heic_version_darwin.go) without needing a macOS runner. Costs
+      # seconds; the previous gap went unnoticed because CI built only
+      # windows-latest and ubuntu-latest.
+      - name: Cross-compile check (darwin/arm64)
+        run: CGO_ENABLED=0 GOOS=darwin GOARCH=arm64 go build ./...
+
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
