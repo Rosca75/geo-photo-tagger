@@ -44,11 +44,35 @@ cross-references timestamps to find the best GPS match and write coordinates int
 | PNG    | ✅        | ✅       | PNG rarely has GPS but supported |
 | DNG    | ✅        | ✅       | |
 | ARW    | ✅        | ✅       | Sony RAW format |
-| HEIC   | ❌        | ✅       | **GPS data only — no thumbnail/preview** |
+| HEIC   | ✅        | ✅       | Thumbnail via `Rosca75/heic` (WASM, no CGo); GPS via `jdeng/goheif` |
 
-**HEIC limitation:** Go has no pure-Go HEVC decoder, and CGo-based solutions cause build issues
-on Windows. HEIC files are read for EXIF GPS data only. The UI will show a placeholder icon
-instead of a thumbnail for HEIC reference images.
+**HEIC support:** HEIC thumbnails work and are shipped. `github.com/Rosca75/heic` runs a
+libheif decoder compiled to WASM under `tetratelabs/wazero`, so the hard "no CGo, no external
+binaries" constraint still holds. Details:
+
+* **Decode ladder** (`heic_thumbnail.go`) — read only the first 192 KB of the file, then try
+  `DecodeThumbnail` (the embedded thumbnail tile, the usual winner), then `Decode` (primary
+  image); on failure fall back to a full file read and retry both. Only if all four rungs fail
+  does the UI get a placeholder.
+* **Backend selection** (`initHEIC()`) — `heic.Dynamic()` returns *the error from opening the
+  shared library*, so `nil` means a system libheif **is** present. A system libheif >= 1.18 is
+  used as-is (~3x faster than WASM); below 1.18 it rejects the truncated 192 KB buffer and
+  mis-decodes HDR/`tmap` HEICs (iPhone 12+), so WASM is forced. Windows normally has no system
+  libheif and therefore always runs WASM.
+* **Pre-warm** — the WASM module compile (~230 ms, one-time) is forced at startup in a
+  background goroutine by `prewarmHEIC()`, so the first user-visible thumbnail doesn't pay it.
+  This is required on every path that ends up on WASM, and only on those.
+* **Version probe** — `heic_version_{linux,darwin,other}.go` probe the system libheif version
+  at runtime via purego `dlopen`. No build-time libheif dependency; they answer `true` when the
+  library cannot be opened.
+* **Caching** — `thumbnail_cache.go` caches results, including empty-string failures, so an
+  undecodable HEIC is not retried on every hover.
+* **A decoded HEIC may be `*image.NRGBA` (WASM) or `*image.YCbCr` (dynamic libheif).** Do not
+  write concrete type assertions on decoded images.
+
+**EXIF stays on `jdeng/goheif`.** Do not switch HEIC EXIF to `heic.DecodeExif`: it exposes no
+`OffsetTimeOriginal` (tag 0x9011), so it would silently reintroduce the timezone bug that
+`exif_reader_offset.go` exists to fix. See `docs/HEIC-V0.4.0-BUMP.md` §8.
 
 ### GPS data import (Option #2)
 | Format | Notes |
@@ -92,7 +116,13 @@ geo-photo-tagger/
 ├── dng_backup_undo.go        DNG undo + tamper detection (companion to dng_backup.go)
 ├── dng_gps_writer_test.go    Benchmarks for the DNG GPS apply pipeline
 ├── matcher.go                Time-based GPS matching engine + scoring
-├── thumbnail.go              Thumbnail generation for JPG, PNG, DNG, ARW (not HEIC)
+├── thumbnail.go              Thumbnail dispatch for JPG, PNG, DNG, ARW + HEIC routing
+├── thumbnail_cache.go        LRU cache for generated thumbnails (keyed path+size+mtime+size)
+├── thumbnail_encode.go       Downscale + base64 JPEG encoding shared by all formats
+├── heic_thumbnail.go         HEIC decode ladder + initHEIC backend choice + prewarmHEIC
+├── heic_version_linux.go     Runtime libheif version probe (purego dlopen) — Linux
+├── heic_version_darwin.go    Runtime libheif version probe (purego dlopen) — macOS
+├── heic_version_other.go     Version probe stub for Windows/BSD (no dynamic libheif)
 ├── types.go                  Shared type definitions (no logic)
 ├── logger.go                 slog-based structured logging setup
 ├── wails.json                Wails config (name, version, author)
@@ -179,8 +209,9 @@ no `fetch()` calls. Instead:
 
 * `GetThumbnail(path)` returns a base64-encoded JPEG string.
 * Frontend sets: `img.src = "data:image/jpeg;base64," + result`
-* For HEIC files, return an empty string — the frontend shows a placeholder icon.
-* Supported for thumbnails: JPG, PNG, DNG, ARW only.
+* Supported for thumbnails: JPG, PNG, DNG, ARW **and HEIC**.
+* An empty string means "no thumbnail could be produced" — the frontend shows a placeholder.
+  It is a failure signal, not the expected result for any particular format.
 
 ---
 
@@ -351,7 +382,7 @@ css
 11. **Comment all Go code.** The owner is not a Go expert. Explain every non-obvious construct.
 12. **Test after every change.** Run `wails dev` and verify in the native window.
 13. **No CGo, no ImageMagick, no external binaries.** Pure Go only. This is a hard constraint.
-14. **HEIC = GPS data only.** Never attempt to decode HEIC pixels or generate HEIC thumbnails. Read EXIF GPS only. Any future preview/hover feature must short-circuit to "no preview" for HEIC files — do not add a placeholder round-trip.
+14. **HEIC thumbnails are supported — but the decode path is performance-critical.** HEIC pixels are decoded via `Rosca75/heic` (WASM, no CGo). Preserve three properties when touching `heic_thumbnail.go`: the 192 KB truncated-header fast path (a full read is ~10x the I/O), the WASM pre-warm on every code path that ends up on WASM, and the cache in `thumbnail_cache.go`. HEIC **EXIF** still goes through `jdeng/goheif`, not `heic.DecodeExif` — see §2.
 15. **Timestamps are sacred.** All time comparisons must account for timezone differences between devices. Normalize to UTC before comparing.
 16. **Respect the 150-line ceiling — split proactively.** When a file grows past 150 lines, split it before the commit lands. Do not let a file reach 220 lines and say "it's mostly comments." Comments count.
 17. **`api.js` is the exclusive call site for `window.go.main.App.*`.** Every new bound Go method gets a matching `api.js` wrapper in the same commit. No exceptions.
